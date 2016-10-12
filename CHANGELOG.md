@@ -1,6 +1,6 @@
 # Change log for SPSWakeUp
 
-### Unreleased
+### 2.2.2
 
 * Add psVersion variable that contains the actual PowerShell version
 * Add function Get-SPSVersion
