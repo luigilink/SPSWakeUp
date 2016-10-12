@@ -1,7 +1,7 @@
-# SPSWakeUp - Wake Up Your SharePoint
+## Description
 SPSWakeUp is a PowerShell script tool to warm up all site collection in your SharePoint environment. It's compatible with all supported versions for SharePoint (2010, 2013 and 2016).
 
-# Features
+## Features
 
 * **Multiple authentication providers** => Works with Integrated windows and Forms Based Authentication
 * **Multi-Threading** for better performance => Execution time can be divide per 4 (depends of CPU Number)
