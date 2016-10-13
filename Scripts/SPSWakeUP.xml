@@ -4,9 +4,9 @@
 # Description:	WarmUP Configuration file for SharePoint 2007, 2010 & 2013
 # FileName:		SPSWakeUP.xml
 # Author:		Jean-Cyril DROUHIN
-# Date:			December 15, 2015
-# Version:		2.1.0
-# URL:			https://spswakeup.codeplex.com/
+# Date:			October 13, 2016
+# Version:		2.1.3
+# URL:			https://spswakeup.codeplex.com/ or https://github.com/luigilink/spswakeup
 # Licence:		MS-PL
 # ====================================================================================
 Use a validator like http://www.w3schools.com/xml/xml_validator.asp to check the syntax of your file.
@@ -28,8 +28,8 @@ Use a validator like http://www.w3schools.com/xml/xml_validator.asp to check the
 		<!-- Disables network loopback checks. This prevents the OS blocking access to your server under names other than its actual host name -->
 		<!-- Set to secure for BackConnectionHostNames or true for standard DisableLoopbackCheck (less secure)-->
 		<DisableLoopbackCheck>secure</DisableLoopbackCheck>
-		<!-- Add URL of Web Application in HOSTS system file -->
-		<AddURLsToHOSTS>true</AddURLsToHOSTS>
+		<!-- Add URL of Web Application in HOSTS system file, you can keep the original file and configure retention file backup (number of files) -->
+		<AddURLsToHOSTS Enable="true" IPv4Address="127.0.0.1" KeepOriginal="false" Retention="10" ListRevocationUrl="true"></AddURLsToHOSTS>
 		<!-- Add URL of Web Application in Intranet security zone -->
 		<AddURLsIntranetZone>true</AddURLsIntranetZone>
 		<!-- Disable Internet Explorer Enhanced Security Configuration for administrators -->
@@ -40,15 +40,13 @@ Use a validator like http://www.w3schools.com/xml/xml_validator.asp to check the
 		<UseIEforWarmUp>false</UseIEforWarmUp>
 	<!-- Configure UserAgent for Output-Cache, works only with publishing template sites -->
 	<UserAgent>Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/38.0.2125.104 Safari/537.36</UserAgent>
-	<!-- Warm UP Web Service like topology, taxonomy, profile-->
-	<WarmupWebSvc>true</WarmupWebSvc>
-		<!-- This section helps to configure the retention of log files -->
-		<CleanLogs Enable="true">
-			<!-- Number of Days for keeping Logs Files -->
-			<Days>30</Days>
-		</CleanLogs>
+	<!-- This section helps to configure the retention of log files -->
+	<CleanLogs Enable="true">
+		<!-- Number of Days for keeping Logs Files -->
+		<Days>30</Days>
+	</CleanLogs>
 	<!-- Service Account Used for Forms Based Authentication FBA -->
-		<ServiceAccount Name="FBA">
+	<ServiceAccount Name="FBA">
 		<Username>admin1</Username>
 		<Password>pass@word1</Password>
 	</ServiceAccount>

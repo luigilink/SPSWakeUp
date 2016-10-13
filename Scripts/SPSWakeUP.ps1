@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS  
-	WarmUP script for SharePoint 2010, 2013 & 2016
+    WarmUP script for SharePoint 2010, 2013 & 2016
 .DESCRIPTION  
 	SPSWakeUp is a PowerShell script tool to warm up all site collection in your SharePoint environment.
 	It's compatible with all supported versions for SharePoint (2007, 2010 and 2013).
@@ -17,8 +17,8 @@
 .NOTES  
 	FileName:	SPSWarmUP.ps1
 	Author:		Jean-Cyril DROUHIN
-	Date:		October 12, 2015
-	Version:	2.1.2
+	Date:		October 13, 2016
+	Version:	2.1.3
 	Licence:	MS-PL
 .LINK
 	https://spswakeup.codeplex.com/
@@ -26,14 +26,19 @@
 #>	
 param 
 (
-	[Parameter(Mandatory=$false,Position=0)][string]$InputFile,
-	[Parameter(Mandatory=$false,Position=1)][switch]$Install
+    [Parameter(Mandatory=$false)]
+	[string]
+	$InputFile,
+	
+    [Parameter(Mandatory=$false)]
+	[switch]
+	$Install
 )
 Clear-Host
 $Host.UI.RawUI.WindowTitle = " -- WarmUP script -- $env:COMPUTERNAME --"
 $spsWakeupVersion = "2.1.2"
 
-# Logging PowerShell script in rtf file 
+# Logging PowerShell script in log file 
 $logfolder = Split-Path -parent $MyInvocation.MyCommand.Definition
 $logTime = Get-Date -Format yyyy-MM-dd_H-mm
 $logFile = $logfolder+"\WarmUP_script_$logTime.log"
@@ -54,7 +59,11 @@ New-variable -Name logFileContent -scope "Global" -force
 New-variable -Name MailContent -scope "Global" -force
 New-Variable -Name hostEntries -scope "Global" -Force
 $logFileContent =  New-Object System.Collections.Generic.List[string]
+
+# Define variable for HOSTS and Backup Hosts file with today's date
 $hostEntries =  New-Object System.Collections.Generic.List[string]
+$hostsFile = "$env:windir\System32\drivers\etc\HOSTS"
+$hostsFileCopy = $hostsFile + '.' + (Get-Date -UFormat "%y%m%d%H%M%S").ToString() + '.copy'
 
 # ====================================================================================
 # INTERNAL FUNCTIONS
@@ -69,7 +78,7 @@ Function Write-LogException
 {
 	param
 	(
-		[Parameter(Mandatory=$true,Position=0)]
+		[Parameter(Mandatory=$true)]
 		$ErrLog
 	)
 	Add-LogContent "Yellow" "   * Exception Message: $($ErrLog.Exception.Message)"
@@ -84,7 +93,7 @@ Function Save-LogFile
 {
 	param 
 	(
-		[Parameter(Mandatory=$true,Position=0)]
+		[Parameter(Mandatory=$true)]
 		[string]
 		$Path
 	)
@@ -103,15 +112,15 @@ Function Add-LogContent
 {
 	param
 	(
-		[Parameter(Mandatory=$true,Position=0)]
+		[Parameter(Mandatory=$true)]
 		[string]
 		$logColor,
 
-		[Parameter(Mandatory=$true,Position=1)]
+		[Parameter(Mandatory=$true)]
 		[string]
 		$logText,
 
-		[Parameter(Mandatory=$false,Position=2)]
+		[Parameter(Mandatory=$false)]
 		[switch]
 		$noNewLine
 	)
@@ -119,7 +128,10 @@ Function Add-LogContent
 	{
 		Write-Host -ForegroundColor $logColor "$logText" -NoNewline
 	}
-	else{Write-Host -ForegroundColor $logColor "$logText"}
+	else
+	{
+		Write-Host -ForegroundColor $logColor "$logText"
+	}
 
 	$logFileContent.Add($logText)
 	$global:MailContent += $logText
@@ -132,29 +144,29 @@ Function Send-SPSLog
 {
 	param 
 	(
-		[Parameter(Mandatory=$true,Position=0)]
+		[Parameter(Mandatory=$true)]
 		$MailAttachment,
 
-		[Parameter(Mandatory=$true,Position=1)]
+		[Parameter(Mandatory=$true)]
 		$MailBody
 	)
 	
 	if ($xmlinput.Configuration.EmailNotification.Enable -eq $true)
 	{
-		$MailAddress = $xmlinput.Configuration.EmailNotification.EmailAddress
-		$SMTPServer = $xmlinput.Configuration.EmailNotification.SMTPServer
-		$MailSubject = "Automated Script - WarmUp Urls - $env:COMPUTERNAME"
+		$mailAddress = $xmlinput.Configuration.EmailNotification.EmailAddress
+		$smtpServer = $xmlinput.Configuration.EmailNotification.SMTPServer
+		$mailSubject = "Automated Script - WarmUp Urls - $env:COMPUTERNAME"
 
 		Add-LogContent "White" "--------------------------------------------------------------"
-		Add-LogContent "White" " - Sending Email with Log file to $MailAddress ..."
+		Add-LogContent "White" " - Sending Email with Log file to $mailAddress ..."
 		try
 		{
-			Send-MailMessage -To $MailAddress -From $MailAddress -Subject $MailSubject -Body $MailBody -BodyAsHtml -SmtpServer $SMTPServer -Attachments $MailAttachment -ea stop
-			Add-LogContent "Green" " - Email sent successfully to $MailAddress"
+			Send-MailMessage -To $mailAddress -From $mailAddress -Subject $mailSubject -Body $MailBody -BodyAsHtml -SmtpServer $smtpServer -Attachments $MailAttachment -ea stop
+			Add-LogContent "Green" " - Email sent successfully to $mailAddress"
 		}
 		catch 
 		{
-			Write-LogException "$_"
+			Write-LogException -ErrLog "$_"
 		}
 	}
 }
@@ -166,7 +178,7 @@ Function Clear-SPSLog
 {
 	param 
 	(
-		[Parameter(Mandatory=$true,Position=0)]
+		[Parameter(Mandatory=$true)]
 		[string]$path
 	)
 	
@@ -227,7 +239,9 @@ Function Get-SPSUserPassword
 {
 	param 
 	(
-		[Parameter(Mandatory=$true,Position=0)][string]$user
+		[Parameter(Mandatory=$true)]
+		[string]
+		$user
 	)
 	[System.Reflection.Assembly]::LoadWithPartialName('Microsoft.VisualBasic') | Out-Null
 	$password = [Microsoft.VisualBasic.Interaction]::InputBox("Enter the password of $user", "User Account Information", "")
@@ -261,7 +275,7 @@ Function Add-SPSTask
 {
 	param 
 	(
-		[Parameter(Mandatory=$true,Position=0)]
+		[Parameter(Mandatory=$true)]
 		[string]
 		$Path
 	)
@@ -420,17 +434,19 @@ Function Get-SPSThrottleLimit
 		{
 			$NumThrottle = 2*$NCpu
 		}
-		ElseIf ($NCpu -ge 8)
+		elseif ($NCpu -ge 8)
 		{
 			$NumThrottle = 10
 		}
-		else {$NumThrottle = 2*$NCpu}
+		else 
+		{
+			$NumThrottle = 2*$NCpu
+		}
 		Add-LogContent "White" " * Number Of Throttle Limit will be $NumThrottle"
 	}
 	End
 	{	
-		return $NumThrottle
-		Add-LogContent "White" " "
+		$NumThrottle
 	}
 }
 #endregion
@@ -466,10 +482,19 @@ Function Add-SPSSitesUrl
 {
 	param 
 	(
-		[Parameter(Mandatory=$true,Position=0)][string]$Url,
-		[Parameter(Mandatory=$true,Position=1)][bool]$Fba = $false,
-		[Parameter(Mandatory=$true,Position=2)][bool]$Win = $true
+		[Parameter(Mandatory=$true)]
+		[string]
+		$Url,
+
+		[Parameter(Mandatory=$true)]
+		[bool]
+		$Fba = $false,
+
+		[Parameter(Mandatory=$true)]
+		[bool]
+		$Win = $true
 	)
+
 	$pso = New-Object PSObject
 	$pso | Add-Member -Name Url -MemberType NoteProperty -Value $Url
 	$pso | Add-Member -Name FBA -MemberType NoteProperty -Value $Fba
@@ -482,12 +507,41 @@ Function Add-SPSSitesUrl
 # ===================================================================================
 Function Add-SPSHostEntry
 {
-	param ([Parameter(Mandatory=$true,Position=0)]$url)
+	param
+	(
+		[Parameter(Mandatory=$true)]
+		$url
+	)
 
-	$url = $url -replace "https://",""
-	$url = $url -replace "http://",""
-	$hostNameEntry = $url.split('/')[0] 
-	[void]$hostEntries.Add($hostNameEntry)
+    $url = $url -replace "https://",""
+    $url = $url -replace "http://",""
+    $hostNameEntry = $url.split('/')[0] 
+    [void]$hostEntries.Add($hostNameEntry)
+}
+# ===================================================================================
+# Name: 		Get-SPWebServicesUrl
+# Description:	Get All Web Services *.svc used by SharePoint
+# ===================================================================================
+Function Get-SPWebServicesUrl
+{
+    if ($xmlinput.Configuration.Settings.WarmupWebSvc -eq $true)
+	{
+		# Import module WebAdministration
+		Import-Module WebAdministration
+				
+		# Add SharePoint Web Services (.svc) in warmup	
+		$iisSPWebServices = Get-ChildItem 'IIS:\Sites\SharePoint Web Services' -recurse | where {$_.Name -like "*svc"}
+		if ($iisSPWebServices)
+		{
+			foreach ($iisSPWebService in $iisSPWebServices)
+			{
+				$iisSPWebServiceUrl = Get-WebURL $iisSPWebService.PSPath
+						
+				[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $iisSPWebServiceUrl.ResponseUri.AbsoluteUri.ToString() -FBA $false -Win $true))
+			}
+		}
+		Add-LogContent "White" "   * SharePoint Web services included in WarmUp Urls"
+	}
 }
 # ===================================================================================
 # Name: 		Get-SPSSitesUrl
@@ -513,23 +567,9 @@ Function Get-SPSSitesUrl
 	{
 		try
 		{
-			if ($xmlinput.Configuration.Settings.WarmupWebSvc -eq $true)
-			{
-				# Import module WebAdministration
-				Import-Module WebAdministration
-				
-				# Add SharePoint Web Services (.svc) in warmup			
-				$iisSPWebServices = Get-ChildItem 'IIS:\Sites\SharePoint Web Services' -recurse | where {$_.Name -like "*svc"}
-				if ($iisSPWebServices)
-				{
-					foreach($iisSPWebService in $iisSPWebServices)
-					{
-						$iisSPWebServiceUrl = Get-WebURL $iisSPWebService.PSPath						
-						[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $iisSPWebServiceUrl.ResponseUri.AbsoluteUri.ToString() -FBA $false -Win $true))
-					}
-					Add-LogContent "White" "   * SharePoint Web services included in WarmUp Urls"
-				}				
-			}
+            $topologySvcUrl = "http://localhost:32843/Topology/topology.svc"
+            [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $topologySvcUrl -FBA $false -Win $true))
+            Add-LogContent "White" "   * SharePoint Web service Topology.svc included in WarmUp Urls"
 			
 			# Get url of CentralAdmin if include in input xml file
 			if ($xmlinput.Configuration.Settings.IncludeCentralAdmin -eq $true)
@@ -619,7 +659,6 @@ Function Get-SPSSitesUrl
 	End
 	{
 		$tbSitesURL
-		Add-LogContent "White" " "
 	}
 }
 # ===================================================================================
@@ -653,7 +692,6 @@ Function Get-SPSHSNCUrl
 	End
 	{
 		$hsncURL
-		Add-LogContent "White" " "
 	}
 }
 # ===================================================================================
@@ -682,7 +720,6 @@ Function Get-SPSWebAppUrl
 	End
 	{	
 		$WebAppURL
-		Add-LogContent "White" " "
 	}
 }
 #endregion
@@ -694,7 +731,11 @@ Function Get-SPSWebAppUrl
 # ===================================================================================
 Function Get-SPSWebRequest
 {
-	param([Parameter(Mandatory=$true,Position=0)]$Urls)
+	param
+	(
+		[Parameter(Mandatory=$true)]
+		$Urls
+	)
 	
 	foreach ($Url in $Urls)
 	{
@@ -741,8 +782,11 @@ Function Invoke-SPSWebRequest
 {
 	param
 	(
-		[Parameter(Mandatory=$true,Position=0)]$Urls,
-		[Parameter(Mandatory=$true,Position=1)]$throttleLimit
+		[Parameter(Mandatory=$true)]
+		$Urls,
+
+		[Parameter(Mandatory=$true)]
+		$throttleLimit
 	)
 	
 	# Get UserAgent from XML input file if no exist get UserAgent from current OS
@@ -760,8 +804,8 @@ Function Invoke-SPSWebRequest
 	{
 		param
 		(
-			[Parameter(Mandatory=$true,Position=0)]$url,
-			[Parameter(Mandatory=$false,Position=1)]$useragent
+			[Parameter(Mandatory=$true)]$url,
+			[Parameter(Mandatory=$false)]$useragent
 		)
 
 		Process 
@@ -770,8 +814,8 @@ Function Invoke-SPSWebRequest
 			{
 				param
 				(
-					[Parameter(Mandatory=$true,Position=0)]$URL,
-					[Parameter(Mandatory=$false,Position=0)]$AllowAutoRedirect = $true
+					[Parameter(Mandatory=$true)]$URL,
+					[Parameter(Mandatory=$false)]$AllowAutoRedirect = $true
 				)
 				Process 
 				{
@@ -877,13 +921,13 @@ Function Get-IEWebRequest
 {
 	param
 	(
-		[Parameter(Mandatory=$true,Position=0)]$urls
+		[Parameter(Mandatory=$true)]$urls
 	)
 	# Run Internet Explorer
 	$global:ie = New-Object -com "InternetExplorer.Application"
 	$global:ie.Navigate("about:blank")
 	$global:ie.visible = $true
-	$global:ieproc = (Get-Process -Name iexplore)| Where-Object {$_.MainWindowHandle -eq $global:ie.HWND}
+	$global:ieproc = (Get-Process -Name iexplore) | Where-Object {$_.MainWindowHandle -eq $global:ie.HWND}
 	
 	foreach ($url in $urls)
 	{
@@ -930,8 +974,8 @@ Function Invoke-IEWebRequest
 {
 	param
 	(
-		[Parameter(Mandatory=$true,Position=0)]$Urls,
-		[Parameter(Mandatory=$true,Position=1)]$throttleLimit
+		[Parameter(Mandatory=$true)]$Urls,
+		[Parameter(Mandatory=$true)]$throttleLimit
 	)
 	
 	$iss = [system.management.automation.runspaces.initialsessionstate]::CreateDefault()
@@ -1019,7 +1063,7 @@ Function Disable-LoopbackCheck
 {
 	param
 	(
-		[Parameter(Mandatory=$true,Position=0)]$hostNameList
+		[Parameter(Mandatory=$true)]$hostNameList
 	)
 	
 	# Disable the Loopback Check on stand alone demo servers.
@@ -1076,56 +1120,144 @@ Function Disable-LoopbackCheck
 	}
 }
 # ====================================================================================
+# Func: Backup-HostsFile
+# Desc: Backup HOSTS File System
+# ====================================================================================
+Function Backup-HostsFile
+{
+	Param
+	(
+		[Parameter(Mandatory=$true)]$hostsFilePath,
+		[Parameter(Mandatory=$true)]$hostsBackupPath
+	)
+	
+	if ($xmlinput.Configuration.Settings.AddURLsToHOSTS.Enable -eq "true")
+	{
+		Add-LogContent "White" "   * Backing up $hostsFilePath file to:"
+		Add-LogContent "White" "   * $hostsBackupPath"
+		Copy-Item $hostsFilePath -Destination $hostsBackupPath -Force
+	}
+}
+# ====================================================================================
+# Func: Restore-HostsFile
+# Desc: Restore previous HOSTS File System
+# ====================================================================================
+Function Restore-HostsFile
+{
+	Param
+	(
+		[Parameter(Mandatory=$true)]$hostsFilePath,
+		[Parameter(Mandatory=$true)]$hostsBackupPath
+	)
+	if ($xmlinput.Configuration.Settings.AddURLsToHOSTS.Enable -eq "true" -AND $xmlinput.Configuration.Settings.AddURLsToHOSTS.KeepOriginal -eq "true")
+	{
+		Add-LogContent "White" "   * Restoring $hostsBackupPath file to:"
+		Add-LogContent "White" "   * $hostsFilePath"
+		Copy-Item $hostsBackupPath -Destination $hostsFilePath -Force
+	}
+}
+# ====================================================================================
+# Func: Clear-HostsFileCopy
+# Desc: Clear previous HOSTS File copy
+# ====================================================================================
+Function Clear-HostsFileCopy
+{
+	Param
+	(
+		[Parameter(Mandatory=$true)]$hostsFilePath
+	)
+	
+	$hostsFolderPath = Split-Path $hostsFilePath
+	if (Test-Path $hostsFolderPath)
+	{
+		# Number of files that will be remaining after backup cleanup. 
+		$numberFiles = $xmlinput.Configuration.Settings.AddURLsToHOSTS.Retention	
+		# Definie the extension of log files
+		$extension = "*.copy"
+		
+		# Get files with .copy extension, sort them by name, from most recent to oldest and skip the first numberFiles variable
+		$copyFiles = Get-Childitem -Path "$hostsFolderPath\*.*" -Include $extension | Sort-Object -Descending -Property Name | Select-Object -Skip $numberFiles
+		
+		if ($copyFiles)
+		{
+			Add-LogContent "White" "--------------------------------------------------------------"
+			Add-LogContent "White" " - Cleaning backup HOSTS files in $hostsFolderPath ..."
+			foreach ($copyFile in $copyFiles) 
+			{
+				if ($copyFile -ne $NULL)
+				{
+					Add-LogContent "Yellow" "   * Deleting File $copyFile ..."
+					Remove-Item $copyFile.FullName | out-null
+				}
+				Else
+				{
+					Add-LogContent "White" " - No more backup HOSTS files to delete "
+					Add-LogContent "White" "--------------------------------------------------------------"
+				}
+			}
+		}
+	}
+}
+# ====================================================================================
 # Func: Add-HostsEntry
 # Desc: This writes URLs to the server's local hosts file and points them to the server itself
-# From: Check http://toddklindt.com/loopback for more information
-# Copyright Todd Klindt 2011
-# Originally published to http://www.toddklindt.com/blog
 # ====================================================================================
 Function Add-HostsEntry
 {
 	param
 	(
-		[Parameter(Mandatory=$true,Position=0)]$hostNameList
+		[Parameter(Mandatory=$true)]$hostNameList
 	)
 
-	if ($xmlinput.Configuration.Settings.AddURLsToHOSTS -eq "true")
+	if ($xmlinput.Configuration.Settings.AddURLsToHOSTS.Enable -eq "true")
 	{
-		Add-LogContent "White" "--------------------------------------------------------------"
-		Add-LogContent "White" " - Add Urls of All Web Applications or HSNC in HOSTS File ..."
-		foreach ($hostname in $hostNameList)
+		$hostsContentFile =  New-Object System.Collections.Generic.List[string]
+		# Check if the IPv4Address configured in XML Input file is reachable
+		$hostIPV4Addr = $xmlinput.Configuration.Settings.AddURLsToHOSTS.IPv4Address
+		Add-LogContent "White" "   * Testing connection (via Ping) to `"$hostIPV4Addr`"..."
+		$canConnect = Test-Connection $hostIPV4Addr -Count 1 -Quiet
+		if ($canConnect) {Add-LogContent "White" "   * IPv4Address $hostIPV4Addr will be used in HOSTS File during WarmUP ..."}
+		if (!$canConnect)
+		{
+			Add-LogContent "Yellow" "   * IPv4Address not valid in Input XML File, 127.0.0.1 will be used in HOSTS File"
+			$hostIPV4Addr = "127.0.0.1"
+		}
+		
+        $hostsContentFile.Add("
+# Copyright (c) 1993-2009 Microsoft Corp.
+#
+# This is a sample HOSTS file used by Microsoft TCP/IP for Windows.
+#
+# This file contains the mappings of IP addresses to host names. Each
+# entry should be kept on an individual line. The IP address should
+# be placed in the first column followed by the corresponding host name.
+# The IP address and the host name should be separated by at least one
+# space.
+#
+# Additionally, comments (such as these) may be inserted on individual
+# lines or following the machine name denoted by a '#' symbol.
+#
+# For example:
+#
+#      102.54.94.97     rhino.acme.com          # source server
+#       38.25.63.10     x.acme.com              # x client host
+")
+
+		if ($xmlinput.Configuration.Settings.AddURLsToHOSTS.ListRevocationUrl -eq "true"){$hostsContentFile.Add("127.0.0.1 `t crl.microsoft.com")}		
+		ForEach ($hostname in $hostNameList)
 		{
 			# Remove http or https information to keep only HostName or FQDN		
 			if ($hostname.Contains(":"))
 			{
-				Add-LogContent "White" " * $hostname cannot be added in HOSTS File, only web applications with 80 or 443 port are added."
+				Add-LogContent "White" "   * $hostname cannot be added in HOSTS File, only web applications with 80 or 443 port are added."
 			}
-			else
-			{	
-				# Make backup copy of the Hosts file with today's date
-				$hostsfile = "$env:windir\System32\drivers\etc\HOSTS"
-				$date = Get-Date -UFormat "%y%m%d%H%M%S"
-				$filecopy = $hostsfile + '.' + $date + '.copy'
-
-				# Get the contents of the Hosts file
-				$file = Get-Content $hostsfile -ReadCount 0
-				$file = $file | Out-String
-
-				# Write the AAMs to the hosts file, unless they already exist.
-				if ($file.Contains($hostname))
-				{Add-LogContent "White" " * HOSTS file entry for `"$hostname`" already exists - skipping."}
-				else
-				{
-					Add-LogContent "White" " * Backing up HOSTS file to:"
-					Add-LogContent "White" " * $filecopy"
-					Copy-Item $hostsfile -Destination $filecopy
-			
-					Add-LogContent "White" " * Adding HOSTS file entry for `"$hostname`"..."
-					Add-Content -Path $hostsfile -Value "`r"
-					Add-Content -Path $hostsfile -value "127.0.0.1 `t $hostname"
-				}
+			Else
+			{
+                $hostsContentFile.Add("$hostIPV4Addr `t $hostname")
 			}
 		}
+        # Save the HOSTS system File
+        Out-File $hostsfile -InputObject $hostsContentFile
 	}
 }
 # ===================================================================================
@@ -1136,7 +1268,7 @@ Function Add-SPSUserPolicy
 {
 	param
 	(	
-		[Parameter(Mandatory=$true,Position=0)]$urls
+		[Parameter(Mandatory=$true)]$urls
 		
 	)
 	$userName = $xmlinput.Configuration.Install.ServiceAccount.Username
@@ -1200,7 +1332,7 @@ Function Add-IETrustedSite
 {
 	param
 	(
-		[Parameter(Mandatory=$true,Position=0)]$urls
+		[Parameter(Mandatory=$true)]$urls
 	)
 
 	Add-LogContent "White" "--------------------------------------------------------------"
@@ -1365,8 +1497,11 @@ else
 		Add-LogContent "White" " - Add Urls of All Web Applications or HSNC in BackConnectionHostNames regedit key ..."
 		Disable-LoopbackCheck -hostNameList $hostEntries
 
-		# Add Web Application and Host Named Site Collection Urls in HOSTS system File
-		Add-HostsEntry -hostNameList $hostEntries
+	# Make backup copy of the Hosts file with today's date Add Web Application and Host Named Site Collection Urls in HOSTS system File
+	Add-LogContent "White" "--------------------------------------------------------------"
+	Add-LogContent "White" " - Add Urls of All Web Applications or HSNC in HOSTS File ..."
+	Backup-HostsFile -hostsFilePath $hostsFile -hostsBackupPath $hostsFileCopy
+    Add-HostsEntry -hostNameList $hostEntries
 		
 		# Add read access for Warmup User account in User Policies settings
 		Add-SPSUserPolicy -urls $getSPWebApps
@@ -1430,6 +1565,12 @@ else
 	$global:MailContent += "Automated Script - WarmUp Urls - Completed on: $DateEnded"
 
 	Trap {Continue}
+	
+	# Restore backup copy of the Hosts file with today's date
+	Restore-HostsFile -hostsFilePath $hostsFile -hostsBackupPath $hostsFileCopy
+	
+	# Clean the copy files of system HOSTS folder
+	Clear-HostsFileCopy -hostsFilePath $hostsFile
 	
 	Save-LogFile $logFile
 	
