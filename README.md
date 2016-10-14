@@ -16,7 +16,7 @@ For more details of available features [Click here!](https://github.com/luigilin
 
 ## Requirements 
 
-The minimum PowerShell version required is 2.0, which ships in Windows Server 2008R2 (or higher versions).
+The minimum PowerShell version required is 2.0, which ships in Windows Server 2008 R2 (or higher versions).
 The preferred version is PowerShell 5.0 or higher, which ships with Windows 10 or Windows Server 2016. 
 
 ## Changelog

@@ -17,11 +17,10 @@
 .NOTES  
 	FileName:	SPSWarmUP.ps1
 	Author:		Jean-Cyril DROUHIN
-	Date:		October 13, 2016
-	Version:	2.1.3
+	Date:		October 14, 2016
+	Version:	2.1.4
 	Licence:	MS-PL
 .LINK
-	https://spswakeup.codeplex.com/
 	https://github.com/luigilink/spswakeup
 #>	
 param 
@@ -36,7 +35,7 @@ param
 )
 Clear-Host
 $Host.UI.RawUI.WindowTitle = " -- WarmUP script -- $env:COMPUTERNAME --"
-$spsWakeupVersion = "2.1.2"
+$spsWakeupVersion = "2.1.4"
 
 # Logging PowerShell script in log file 
 $logfolder = Split-Path -parent $MyInvocation.MyCommand.Definition
@@ -81,9 +80,11 @@ Function Write-LogException
 		[Parameter(Mandatory=$true)]
 		$ErrLog
 	)
-	Add-LogContent "Yellow" "   * Exception Message: $($ErrLog.Exception.Message)"
+	Add-LogContent "Yellow" "$($ErrLog.Exception.Message)" -noNewLine
 	$pathErrLog = Join-Path -Path $logfolder -ChildPath (((Get-Date).Ticks.ToString())+"_errlog.xml")
 	$ErrLog | Export-Clixml -Path $pathErrLog -Depth 3
+    Add-LogContent "Yellow" " For more informations, see errlog.xml file:"
+    Add-LogContent "Yellow" "$pathErrLog"
 }
 # ===================================================================================
 # Func: Save-LogFile
@@ -262,7 +263,7 @@ Function Get-SPSUserPassword
 	catch
 	{
 		Add-LogContent "Yellow" "An error occurred checking password for `"$user`""
-		Write-LogException "$_"	
+		Write-LogException $_	
 	}
 
 	$password
@@ -366,7 +367,7 @@ Function Add-SPSTask
 			catch
 			{
 				Add-LogContent "Yellow" "An error occurred adding Scheduled Task for `"$TaskUser`""
-				Write-LogException "$_"			    
+				Write-LogException $_			    
 			}
 		}
 	}
@@ -486,11 +487,11 @@ Function Add-SPSSitesUrl
 		[string]
 		$Url,
 
-		[Parameter(Mandatory=$true)]
+		[Parameter(Mandatory=$false)]
 		[bool]
 		$Fba = $false,
 
-		[Parameter(Mandatory=$true)]
+		[Parameter(Mandatory=$false)]
 		[bool]
 		$Win = $true
 	)
@@ -537,7 +538,7 @@ Function Get-SPWebServicesUrl
 			{
 				$iisSPWebServiceUrl = Get-WebURL $iisSPWebService.PSPath
 						
-				[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $iisSPWebServiceUrl.ResponseUri.AbsoluteUri.ToString() -FBA $false -Win $true))
+				[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $iisSPWebServiceUrl.ResponseUri.AbsoluteUri.ToString()))
 			}
 		}
 		Add-LogContent "White" "   * SharePoint Web services included in WarmUp Urls"
@@ -555,8 +556,6 @@ Function Get-SPSSitesUrl
 		Add-LogContent "White" " - Get URLs of All Site Collection ... Please waiting"
 		# Variable Declaration
 		$tbSitesURL = New-Object System.Collections.ArrayList
-		$ExcludeUrls = $xmlinput.Configuration.ExcludeUrls.ExcludeUrl
-		$CustomUrls = $xmlinput.Configuration.CustomUrls.CustomUrl
 		$defaultUrlZone = [Microsoft.SharePoint.Administration.SPUrlZone]::Default
 		[bool]$fbaSParameter = $false
 		[bool]$winParameter = $true
@@ -568,19 +567,22 @@ Function Get-SPSSitesUrl
 		try
 		{
             $topologySvcUrl = "http://localhost:32843/Topology/topology.svc"
-            [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $topologySvcUrl -FBA $false -Win $true))
+            [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $topologySvcUrl))
             Add-LogContent "White" "   * SharePoint Web service Topology.svc included in WarmUp Urls"
 			
 			# Get url of CentralAdmin if include in input xml file
 			if ($xmlinput.Configuration.Settings.IncludeCentralAdmin -eq $true)
 			{
-				$WebAppADM = [microsoft.sharepoint.administration.SPAdministrationWebApplication]::Local
-				$SitesADM = $WebAppADM.sites
-				foreach ($site in $SitesADM)
-				{ 
-					[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $site.Url -FBA $false -Win $true))
-					$site.Dispose() 
+				$webAppADM = Get-SPWebApplication -IncludeCentralAdministration | Where-Object -FilterScript {
+					$_.IsAdministrationWebApplication
 				}
+				$siteADM = $webAppADM.Url
+				[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM))
+				[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM"Lists/HealthReports/AllItems.aspx"))
+				[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM"_admin/FarmServers.aspx"))
+				[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM"_admin/Server.aspx"))
+				[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM"_admin/WebApplicationList.aspx"))
+				[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM"_admin/ServiceApplications.aspx"))
 				Add-LogContent "White" "   * Central Administration included in WarmUp Urls"
 			}
 			else
@@ -589,17 +591,36 @@ Function Get-SPSSitesUrl
 			}
 		
 			# Get Url of all site collection
-            $WebSrv = [microsoft.sharepoint.administration.spwebservice]::ContentService
-			$webApps = $WebSrv.WebApplications
+            #$WebSrv = [microsoft.sharepoint.administration.spwebservice]::ContentService
+			$webApps = Get-SPWebApplication
 		
 			foreach ($webApp in $webApps)
 			{
 				$iisSettings = $webApp.GetIisSettingsWithFallback($defaultUrlZone)
-				$getClaimProviderForms = $iisSettings.ClaimsAuthenticationProviders | Where {$_.ClaimProviderName -eq "Forms"}
-				$getClaimProviderWindows = $iisSettings.ClaimsAuthenticationProviders | Where {$_.ClaimProviderName -eq "AD"}
+				$getClaimProviderForms = $iisSettings.ClaimsAuthenticationProviders | Where-Object -FilterScript {
+					$_.ClaimProviderName -eq "Forms"
+				}
+				$getClaimProviderWindows = $iisSettings.ClaimsAuthenticationProviders | Where-Object -FilterScript {
+					$_.ClaimProviderName -eq "AD"
+				}
 			
-				if ($getClaimProviderForms){$fbaSParameter = $true}else{$fbaSParameter=$false}
-				if ($getClaimProviderWindows){$winParameter = $true}else{$winParameter=$false}
+				if ($getClaimProviderForms)
+				{
+					$fbaSParameter = $true
+				}
+				else
+				{
+					$fbaSParameter=$false
+				}
+				
+				if ($getClaimProviderWindows)
+				{
+					$winParameter = $true
+				}
+				else
+				{
+					$winParameter=$false
+				}
 
 				$sites = $webApp.sites
 				foreach ($site in $sites)
@@ -619,40 +640,11 @@ Function Get-SPSSitesUrl
 
 			}
 			Add-LogContent "White" "   * $NumSites site collection will be waking up ..."
-		
-			# Remove Site Collection Urls from WarmUp
-			if ($ExcludeUrls.Length -ne 0)
-			{
-				Add-LogContent "White" " - Site Collection Urls Excluded from WarmUp :"
-				$global:MailContent += "<br>Site Collection Urls Excluded from WarmUp :<br>"
-				foreach ($ExcludeUrl in $ExcludeUrls)
-				{
-					Add-LogContent "White" "   * $ExcludeUrl"
-					$global:MailContent += "$ExcludeUrl<br>"
-					[void]$tbSitesURL.Remove($ExcludeUrl)
-				}
-			}
-		
-			# Add Custom Urls in WarmUp
-			if ($CustomUrls.Length -ne 0)
-			{
-				Add-LogContent "White" " - Custom Urls added in WarmUp :"
-				$global:MailContent += "<br>Custom Urls added in WarmUp :<br>"
-				foreach ($CustomUrl in $CustomUrls)
-				{
-					$stCustomUrl = $CustomUrl.url
-					Add-LogContent "White" "   * $stCustomUrl"
-					$global:MailContent += "$stCustomUrl<br>"
-					if (($CustomUrl.fba).ToLower() -eq "true"){$fbaSParameter=$true}else{$fbaSParameter=$false}
-					if (($CustomUrl.windows).ToLower() -eq "true"){$winParameter=$true}else{$winParameter=$false}
-					[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $stCustomUrl -FBA $fbaSParameter -Win $winParameter))
-				}
-			}
 		}
 		catch
 		{
 			Add-LogContent "Yellow" "An error occurred getting all site collections"
-			Write-LogException "$_"		
+			Write-LogException $_		
 		}
 	}
 	
@@ -667,32 +659,27 @@ Function Get-SPSSitesUrl
 # ===================================================================================
 Function Get-SPSHSNCUrl
 {
-	Begin
+	Add-LogContent "White" "--------------------------------------------------------------"
+	Add-LogContent "White" " - Get URLs of All Host Named Site Collection ..."
+	# Variable Declaration
+	$hsncURL = New-Object System.Collections.ArrayList
+
+	$webApps = Get-SPWebApplication
+	$sites = $webApps | ForEach-Object -Process {
+        $_.sites
+    }
+	$HSNCs = $sites | Where-Object -FilterScript {
+        $_.HostHeaderIsSiteName -eq $true
+    }
+	
+    foreach ($HSNC in $HSNCs)
 	{
-		Add-LogContent "White" "--------------------------------------------------------------"
-		Add-LogContent "White" " - Get URLs of All Host Named Site Collection ..."
-		# Variable Declaration
-		$hsncURL = New-Object System.Collections.ArrayList
-		$WebSrv = [microsoft.sharepoint.administration.spwebservice]::ContentService
+		[void]$hsncURL.Add($HSNC.Url)
+		Add-SPSHostEntry -Url $HSNC.Url
+		$HSNC.Dispose()
 	}
 
-	Process
-	{
-		$webApps = $WebSrv.WebApplications
-		$sites = $webApps | ForEach-Object {$_.sites}
-		$HSNCs = $sites | Where-Object {$_.HostHeaderIsSiteName -eq $true}
-		foreach ($HSNC in $HSNCs)
-		{
-			[void]$hsncURL.Add($HSNC.Url)
-			Add-SPSHostEntry -Url $HSNC.Url
-			$HSNC.Dispose()
-		}
-	}
-	
-	End
-	{
-		$hsncURL
-	}
+	$hsncURL
 }
 # ===================================================================================
 # Name: 		Get-SPSWebAppUrl
@@ -700,27 +687,23 @@ Function Get-SPSHSNCUrl
 # ===================================================================================
 Function Get-SPSWebAppUrl
 {
-	Begin
-	{
-		Add-LogContent "White" "--------------------------------------------------------------"
-		Add-LogContent "White" " - Get URLs of All Web Applications ..."
-		$WebAppURL = New-Object System.Collections.ArrayList
-		$WebSrv = [microsoft.sharepoint.administration.spwebservice]::ContentService
-	}
+	Add-LogContent "White" "--------------------------------------------------------------"
+	Add-LogContent "White" " - Get URLs of All Web Applications ..."
+	$webAppURL = New-Object System.Collections.ArrayList
 	
-	Process
+	#$WebSrv = [microsoft.sharepoint.administration.spwebservice]::ContentService
+	$webApps = Get-SPWebApplication
+
+	foreach ($webapp in $webApps)
 	{
-		$webApps = $WebSrv.WebApplications
-		foreach ($webapp in $webApps)
+		[void]$webAppURL.Add($webapp.GetResponseUri("Default").AbsoluteUri)
+		if (-not($webapp.GetResponseUri("Default").AbsoluteUri -match $env:COMPUTERNAME))
 		{
-			[void]$WebAppURL.Add($webapp.GetResponseUri("Default").AbsoluteUri)
-			Add-SPSHostEntry -Url $webapp.GetResponseUri("Default").AbsoluteUri            
+			Add-SPSHostEntry -Url $webapp.GetResponseUri("Default").AbsoluteUri
 		}
-	}
-	End
-	{	
-		$WebAppURL
-	}
+	}		
+
+	$webAppURL
 }
 #endregion
 
@@ -734,45 +717,44 @@ Function Get-SPSWebRequest
 	param
 	(
 		[Parameter(Mandatory=$true)]
-		$Urls
+		[System.String]
+		$Url
 	)
 	
-	foreach ($Url in $Urls)
-	{
-		$TimeStart = Get-Date
-		$WebRequestObject = [System.Net.HttpWebRequest] [System.Net.WebRequest]::Create($Url)
-		$WebRequestObject.UseDefaultCredentials = $true
-		$WebRequestObject.Method = "GET"
-		$WebRequestObject.Accept = "text/html"
-		$WebRequestObject.Timeout = 80000
+	$TimeStart = Get-Date
+	$WebRequestObject = [System.Net.HttpWebRequest] [System.Net.WebRequest]::Create($Url)
+	$WebRequestObject.UseDefaultCredentials = $true
+	$WebRequestObject.Method = "GET"
+	$WebRequestObject.Accept = "text/html"
+	$WebRequestObject.Timeout = 80000
 
-		Add-LogContent "White" " - Web Request for url: $url"
-		$global:MailContent += " - Web Request for url: $url"
-		try
+	Add-LogContent "White" " - Web Request for url: $url"
+	$global:MailContent += " - Web Request for url: $url"
+	try
+	{
+		# Get the response of $WebRequestObject
+		$ResponseObject = [System.Net.HttpWebResponse] $WebRequestObject.GetResponse()
+		$TimeStop = Get-Date
+		$TimeExec = ($TimeStop - $TimeStart).TotalSeconds
+		'{0,-30} : {1,10:#,##0.00} s' -f '   WebSite successfully loaded in', $TimeExec
+		#Add-LogContent "Green" "   * WebSite successfully loaded in $TimeExec s"
+		$global:MailContent += "<br><font color=green>WebSite successfully loaded in $TimeExec s</font><br>"
+	}
+	catch [Net.WebException]
+	{
+		Write-LogException $_
+	}
+	finally 
+	{
+		# Issue 1451 - https://spswakeup.codeplex.com/workitem/1451
+		# Thanks to Pupasini - Closing the HttpWebResponse object		
+		if ($ResponseObject) 
 		{
-			# Get the response of $WebRequestObject
-			$ResponseObject = [System.Net.HttpWebResponse] $WebRequestObject.GetResponse()
-			$TimeStop = Get-Date
-			$TimeExec = ($TimeStop - $TimeStart).TotalSeconds
-			'{0,-30} : {1,10:#,##0.00} s' -f '   WebSite successfully loaded in', $TimeExec
-			#Add-LogContent "Green" "   * WebSite successfully loaded in $TimeExec s"
-			$global:MailContent += "<br><font color=green>WebSite successfully loaded in $TimeExec s</font><br>"
-		}
-		catch [Net.WebException]
-		{
-			Write-LogException "$_"
-		}
-		finally 
-		{
-			# Issue 1451 - https://spswakeup.codeplex.com/workitem/1451
-			# Thanks to Pupasini - Closing the HttpWebResponse object		
-			if ($ResponseObject) 
-			{
-				$ResponseObject.Close()
-				Remove-Variable ResponseObject
-			}
+			$ResponseObject.Close()
+			Remove-Variable ResponseObject
 		}
 	}
+
 }
 # ===================================================================================
 # Name: 		Invoke-SPSWebRequest
@@ -904,7 +886,7 @@ Function Invoke-SPSWebRequest
 	catch
 	{
 		Add-LogContent "Yellow" "An error occurred invoking multi-threading function"
-		Write-LogException "$_"
+		Write-LogException $_
 	}
 	
 	Finally
@@ -1209,7 +1191,7 @@ Function Add-HostsEntry
 		[Parameter(Mandatory=$true)]$hostNameList
 	)
 
-	if ($xmlinput.Configuration.Settings.AddURLsToHOSTS.Enable -eq "true")
+	if ($xmlinput.Configuration.Settings.AddURLsToHOSTS.Enable -eq "true" -and $hostNameList)
 	{
 		$hostsContentFile =  New-Object System.Collections.Generic.List[string]
 		# Check if the IPv4Address configured in XML Input file is reachable
@@ -1317,7 +1299,7 @@ Function Add-SPSUserPolicy
 		catch
 		{
 			Add-LogContent "Yellow" "An error occurred applying Read access for `"$user`" account to `"$url`""
-			Write-LogException "$_"
+			Write-LogException $_
 		}
 	}
 }
@@ -1492,17 +1474,20 @@ else
 
 	if ($null -ne $getSPWebApps -and $null -ne $getSPSites)
 	{
-		# Disable LoopBack Check
-		Add-LogContent "White" "--------------------------------------------------------------"
-		Add-LogContent "White" " - Add Urls of All Web Applications or HSNC in BackConnectionHostNames regedit key ..."
-		Disable-LoopbackCheck -hostNameList $hostEntries
+		if ($hostEntries)
+        {
+            # Disable LoopBack Check
+		    Add-LogContent "White" "--------------------------------------------------------------"
+		    Add-LogContent "White" " - Add Urls of All Web Applications or HSNC in BackConnectionHostNames regedit key ..."
+		    Disable-LoopbackCheck -hostNameList $hostEntries
 
-	# Make backup copy of the Hosts file with today's date Add Web Application and Host Named Site Collection Urls in HOSTS system File
-	Add-LogContent "White" "--------------------------------------------------------------"
-	Add-LogContent "White" " - Add Urls of All Web Applications or HSNC in HOSTS File ..."
-	Backup-HostsFile -hostsFilePath $hostsFile -hostsBackupPath $hostsFileCopy
-    Add-HostsEntry -hostNameList $hostEntries
-		
+	        # Make backup copy of the Hosts file with today's date Add Web Application and Host Named Site Collection Urls in HOSTS system File
+	        Add-LogContent "White" "--------------------------------------------------------------"
+	        Add-LogContent "White" " - Add Urls of All Web Applications or HSNC in HOSTS File ..."
+	        Backup-HostsFile -hostsFilePath $hostsFile -hostsBackupPath $hostsFileCopy
+            Add-HostsEntry -hostNameList $hostEntries
+		}
+
 		# Add read access for Warmup User account in User Policies settings
 		Add-SPSUserPolicy -urls $getSPWebApps
 		
@@ -1526,29 +1511,35 @@ else
 			Add-LogContent "White" "--------------------------------------------------------------"
 			Add-LogContent "White" " - Opening All sites Urls with Internet Explorer ..."
 			$global:MailContent += "<br>Opening All sites Urls with Internet Explorer ... <br>"
-
-			#Get-IEWebRequest $getSPSites
 			$InvokeResults = Invoke-IEWebRequest -Urls $getSPSites -throttleLimit $NumThrottle
 		}
 		else
 		{
 			# Request Url with System.Net.WebClient Object for All Site Collections Urls
 			Add-LogContent "White" "--------------------------------------------------------------"
-			Add-LogContent "Yellow" " - UseIEforWarmUp is set to False - Opening All sites Urls with Web Request ..."
+			Add-LogContent "White" " - UseIEforWarmUp is set to False - Opening All sites Urls with Web Request ..."
 			$global:MailContent += "<br>Opening All sites Urls with Web Request Object, see log files for more details<br>"
-			#Get-SPSWebRequest $getSPSites
 			$InvokeResults = Invoke-SPSWebRequest -Urls $getSPSites -throttleLimit $NumThrottle
 		}
 		# Show the results
+        Add-LogContent "White" "WarmUP Results:"
 		foreach ($InvokeResult in $InvokeResults)
 		{
 			$resultUrl = $InvokeResult.Url
 			$resultTime = $InvokeResult.'Time(s)'
 			$resultStatus = $InvokeResult.Status
 			Add-LogContent "White" " -----------------------------------"
-			Add-LogContent "White" " . Url    : $resultUrl"
-			Add-LogContent "White" " . Time   : $resultTime seconds"
-			Add-LogContent "White" " . Status : $resultStatus"
+			Add-LogContent "White" " | Url    : $resultUrl"
+			Add-LogContent "White" " | Time   : $resultTime seconds"
+            if ($resultStatus -match "200")
+            {
+                Add-LogContent "White" " | Status : " -noNewLine
+                Add-LogContent "Green" "$resultStatus"
+            }
+			else
+            {
+                Add-LogContent "White" " | Status : $resultStatus"
+            }
 		}
 	}
 	
