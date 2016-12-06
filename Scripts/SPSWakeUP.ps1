@@ -1,41 +1,45 @@
 ﻿<#
-.SYNOPSIS  
+	.SYNOPSIS  
     WarmUP script for SharePoint 2010, 2013 & 2016
-.DESCRIPTION  
+	
+	.DESCRIPTION  
 	SPSWakeUp is a PowerShell script tool to warm up all site collection in your SharePoint environment.
-	It's compatible with all supported versions for SharePoint (2007, 2010 and 2013).
+	It's compatible with all supported versions for SharePoint (2010 to 2016).
 	Use Internet Explorer to download JS, CSS and Pictures files, 
-	Log script results in rtf file, 
+	Log script results in log file, 
 	Email nofications, 
 	Configure automatically prerequisites for a best warm-up, 
-	Possibility to add or remove custom url
-.PARAMETER InputFile
+	
+	.PARAMETER InputFile
 	Need parameter input file, example: 
 	PS D:\> E:\SCRIPT\SPSWakeUP.ps1 "E:\SCRIPT\SPSWakeUP.xml"
-.EXAMPLE
+	
+	.EXAMPLE
 	SPSWakeUP.ps1 "E:\SCRIPT\SPSWakeUP.xml"
-.NOTES  
+	
+	.NOTES  
 	FileName:	SPSWarmUP.ps1
 	Author:		Jean-Cyril DROUHIN
-	Date:		October 14, 2016
-	Version:	2.1.4
+	Date:		December 2, 2016
+	Version:	2.1.5
 	Licence:	MS-PL
-.LINK
+	
+	.LINK
 	https://github.com/luigilink/spswakeup
 #>	
 param 
 (
-    [Parameter(Mandatory=$false)]
+    [Parameter()]
 	[string]
 	$InputFile,
 	
-    [Parameter(Mandatory=$false)]
+    [Parameter()]
 	[switch]
 	$Install
 )
 Clear-Host
 $Host.UI.RawUI.WindowTitle = " -- WarmUP script -- $env:COMPUTERNAME --"
-$spsWakeupVersion = "2.1.4"
+$spsWakeupVersion = "2.1.5"
 
 # Logging PowerShell script in log file 
 $logfolder = Split-Path -parent $MyInvocation.MyCommand.Definition
@@ -43,20 +47,20 @@ $logTime = Get-Date -Format yyyy-MM-dd_H-mm
 $logFile = $logfolder+"\WarmUP_script_$logTime.log"
 $currentuser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
 
-#Get the content of the SPSWakeUP.xml file
+# Get the content of the SPSWakeUP.xml file
 if (!$InputFile)
 {
 	$InputFile = $logfolder+"\SPSWakeUP.xml"
 }
-if (Test-Path $InputFile)
+if (Test-Path -Path $InputFile)
 {
-	[xml]$xmlinput = (Get-Content $InputFile -ReadCount 0)
+	[xml]$xmlinput = (Get-Content -Path $InputFile -ReadCount 0)
 }
 
-#Define Global Variable
-New-variable -Name logFileContent -scope "Global" -force
-New-variable -Name MailContent -scope "Global" -force
-New-Variable -Name hostEntries -scope "Global" -Force
+# Define Global Variable
+New-variable -Name logFileContent -force
+New-variable -Name mailLogContent -force
+New-Variable -Name hostEntries -Force
 $logFileContent =  New-Object System.Collections.Generic.List[string]
 
 # Define variable for HOSTS and Backup Hosts file with today's date
@@ -67,14 +71,91 @@ $hostsFileCopy = $hostsFile + '.' + (Get-Date -UFormat "%y%m%d%H%M%S").ToString(
 # ====================================================================================
 # INTERNAL FUNCTIONS
 # ====================================================================================
-
 #region logging and trap exception
+<#
+    .SYNOPSIS
+    Displays a standardized verbose message.
+
+    .PARAMETER Message
+    String containing the key of the localized verbose message.
+#>
+function New-VerboseMessage
+{
+    [CmdletBinding()]
+    [Alias()]
+    [OutputType([String])]
+    param
+    (
+        [Parameter(Mandatory=$true)]
+		[ValidateNotNull()]         
+        [System.String]
+        $Message
+    )
+    Write-Verbose -Message ((Get-Date -format yyyy-MM-dd_HH-mm-ss) + ": $Message");
+}
+<#
+    .SYNOPSIS
+        Displays a localized warning message.
+
+    .PARAMETER WarningType
+        String containing the key of the localized warning message.
+    
+    .PARAMETER FormatArgs
+        Collection of strings to replace format objects in warning message.
+#>
+function New-WarningMessage
+{
+    [CmdletBinding()]
+    param
+    (
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [String]
+        $WarningType,
+
+        [String[]]
+        $FormatArgs
+    )
+
+    ## Attempt to get the string from the localized data
+    $warningMessage = $LocalizedData.$WarningType
+
+    ## Ensure there is a message present in the localization file
+    if (!$warningMessage)
+    {
+        $errorParams = @{
+            ErrorType = 'NoKeyFound'
+            FormatArgs = $WarningType
+            ErrorCategory = 'InvalidArgument'
+            TargetObject = 'New-WarningMessage'
+        }
+
+        ## Raise an error indicating the localization data is not present
+        throw New-TerminatingError @errorParams 
+    }
+
+    ## Apply formatting
+    $warningMessage = $warningMessage -f $FormatArgs
+
+    ## Write the message as a warning
+    Write-Warning -Message $warningMessage
+}
 # ===================================================================================
 # Func: Write-LogException
 # Desc: write Exception in powershell session and in error file
 # ===================================================================================
-Function Write-LogException
+<#
+    .SYNOPSIS
+    Write Exception in powershell session and in error file
+
+    .PARAMETER ErrLog
+    Object containing the exception of a try/catch sequence.
+#>
+function Write-LogException
 {
+	[CmdletBinding()]
+    [Alias()]
+    [OutputType([String])]
 	param
 	(
 		[Parameter(Mandatory=$true)]
@@ -90,7 +171,7 @@ Function Write-LogException
 # Func: Save-LogFile
 # Desc: Save logFile in current folder
 # ===================================================================================
-Function Save-LogFile
+function Save-LogFile
 {
 	param 
 	(
@@ -109,7 +190,7 @@ Function Save-LogFile
 # Func: Add-LogContent
 # Desc: Add Content in log file
 # ===================================================================================
-Function Add-LogContent
+function Add-LogContent
 {
 	param
 	(
@@ -135,13 +216,13 @@ Function Add-LogContent
 	}
 
 	$logFileContent.Add($logText)
-	$global:MailContent += $logText
+	$mailLogContent += $logText
 }
 # ===================================================================================
 # Func: Send-SPSLog
 # Desc: Send Email with log file in attachment
 # ===================================================================================
-Function Send-SPSLog
+function Send-SPSLog
 {
 	param 
 	(
@@ -175,7 +256,7 @@ Function Send-SPSLog
 # Func: Clear-SPSLog
 # Desc: Clean Log Files
 # ===================================================================================
-Function Clear-SPSLog
+function Clear-SPSLog
 {
 	param 
 	(
@@ -200,18 +281,20 @@ Function Clear-SPSLog
 			$LastWrite = $Now.AddDays(-$days)
 			
 			# Get files based on lastwrite filter and specified folder
-			$Files = Get-Childitem -Path "$path\*.*" -Include $Extension | Where {$_.LastWriteTime -le "$LastWrite"}
+			$files = Get-Childitem -Path "$path\*.*" -Include $Extension | Where-Object -FilterScript {
+				$_.LastWriteTime -le "$LastWrite"
+			}
 			
-			if ($Files)
+			if ($files)
 			{
 				Add-LogContent "White" "--------------------------------------------------------------"
 				Add-LogContent "White" " - Cleaning log files in $path ..."
-				foreach ($File in $Files) 
+				foreach ($file in $files) 
 				{
-					if ($File -ne $NULL)
+					if ($null -ne $file)
 					{
-						Add-LogContent "Yellow" " * Deleting File $File ..."
-						Remove-Item $File.FullName | out-null
+						Add-LogContent "Yellow" " * Deleting file $file ..."
+						Remove-Item $file.FullName | out-null
 					}
 					else
 					{
@@ -236,7 +319,7 @@ Function Clear-SPSLog
 # Func: Get-SPSUserPassword
 # Desc: Get Password from Service Account
 # ===================================================================================
-Function Get-SPSUserPassword
+function Get-SPSUserPassword
 {
 	param 
 	(
@@ -253,7 +336,7 @@ Function Get-SPSUserPassword
 			$currentDomain = "LDAP://" + ([ADSI]"").distinguishedName
 			Add-LogContent "White" " - Account `"$user`" ..." -noNewLine
 			$dom = New-Object System.DirectoryServices.DirectoryEntry($currentDomain,$user,$password)
-			if ($dom.Path -eq $null)
+			if ($null -eq $dom.Path)
 			{
 				Write-Host -BackgroundColor Red -ForegroundColor Black "Invalid!"
 			}
@@ -272,7 +355,7 @@ Function Get-SPSUserPassword
 # Func: Add-SPSTask
 # Desc: Add SPSWakeUP Task in Task Scheduler
 # ===================================================================================
-Function Add-SPSTask
+function Add-SPSTask
 {
 	param 
 	(
@@ -295,7 +378,9 @@ Function Add-SPSTask
 		$TaskSvc = New-Object -ComObject ("Schedule.service")
 		$TaskSvc.Connect($Hostname)
 		$TaskFolder = $TaskSvc.GetFolder("\")
-		$TaskSPSWKP = $TaskFolder.GetTasks(0) | Where {$_.Name -eq $TaskName}
+		$TaskSPSWKP = $TaskFolder.GetTasks(0) | Where-Object -FilterScript {
+			$_.Name -eq $TaskName
+		}
 		$TaskCmd = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
 		$inputFileFullPath = (Get-Item $InputFile).FullName;
 		$TaskCmdArg = 
@@ -379,9 +464,9 @@ Function Add-SPSTask
 # Name: 		Add-PSSharePoint
 # Description:	Load SharePoint Powershell Snapin
 # ===================================================================================
-Function Add-PSSharePoint
+function Add-PSSharePoint
 {
-	if ((Get-PsSnapin | Where {$_.Name -eq "Microsoft.SharePoint.PowerShell"})-eq $null)
+	if ($null -eq (Get-PsSnapin | Where-Object -FilterScript {$_.Name -eq "Microsoft.SharePoint.PowerShell"}))
 	{
 		Add-LogContent "White" "--------------------------------------------------------------"
 		Add-LogContent "Cyan" " - Loading SharePoint Powershell Snapin..."
@@ -393,7 +478,7 @@ Function Add-PSSharePoint
 # Name: 		Add-RASharePoint
 # Description:	Load SharePoint Assembly for SharePoint 2007, 2010, 2013 & 2016
 # ===================================================================================
-Function Add-RASharePoint
+function Add-RASharePoint
 {
 	Add-LogContent "White" "--------------------------------------------------------------"
 	Add-LogContent "Cyan" " - Loading Microsoft.SharePoint Assembly..."
@@ -404,7 +489,7 @@ Function Add-RASharePoint
 # Name: 		Add-SystemWeb
 # Description:	Load System.Web with Reflection Assembly
 # ===================================================================================
-Function Add-SystemWeb
+function Add-SystemWeb
 {
 	if ($xmlinput.Configuration.Settings.UseIEforWarmUp -eq $false)
 	{
@@ -418,7 +503,7 @@ Function Add-SystemWeb
 # Name: 		Get-SPSThrottleLimit
 # Description:	Get Number Of Throttle Limit
 # ===================================================================================
-Function Get-SPSThrottleLimit
+function Get-SPSThrottleLimit
 {
 	Begin
 	{
@@ -429,19 +514,20 @@ Function Get-SPSThrottleLimit
 	
 	Process
 	{
-		# Get Number Of Throttle Limit 
-		$NCpu = (Get-WmiObject Win32_Processor | measure -Property NumberOfLogicalProcessors -Sum).Sum
-		if ($NCpu -le 2)
+		# Get Number Of Throttle Limit
+		$cimInstanceProc = Get-CimInstance -ClassName Win32_Processor
+		$numLogicalCpu = (Measure-Object -InputObject $cimInstanceProc -Property NumberOfLogicalProcessors -Sum).Sum
+		if ($numLogicalCpu -le 2)
 		{
-			$NumThrottle = 2*$NCpu
+			$NumThrottle = 2*$numLogicalCpu
 		}
-		elseif ($NCpu -ge 8)
+		elseif ($numLogicalCpu -ge 8)
 		{
 			$NumThrottle = 10
 		}
 		else 
 		{
-			$NumThrottle = 2*$NCpu
+			$NumThrottle = 2*$numLogicalCpu
 		}
 		Add-LogContent "White" " * Number Of Throttle Limit will be $NumThrottle"
 	}
@@ -457,7 +543,7 @@ Function Get-SPSThrottleLimit
 # Name: 		Get-SPSVersion
 # Description:	PowerShell script to display SharePoint products from the registry.
 # ===================================================================================
-Function Get-SPSVersion
+function Get-SPSVersion
 {
     # location in registry to get info about installed software
     $regLoc = Get-ChildItem HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall
@@ -479,7 +565,7 @@ Function Get-SPSVersion
 # Name: 		Add-SPSSitesUrl
 # Description:	Add Site Collection Url and FBA settings in PSObject
 # ===================================================================================
-Function Add-SPSSitesUrl
+function Add-SPSSitesUrl
 {
 	param 
 	(
@@ -506,7 +592,7 @@ Function Add-SPSSitesUrl
 # Name: 		Add-SPSHostEntry
 # Description:	Add Web Application and HSNC Urls in hostEntries Variable
 # ===================================================================================
-Function Add-SPSHostEntry
+function Add-SPSHostEntry
 {
 	param
 	(
@@ -523,7 +609,7 @@ Function Add-SPSHostEntry
 # Name: 		Get-SPWebServicesUrl
 # Description:	Get All Web Services *.svc used by SharePoint
 # ===================================================================================
-Function Get-SPWebServicesUrl
+function Get-SPWebServicesUrl
 {
     if ($xmlinput.Configuration.Settings.WarmupWebSvc -eq $true)
 	{
@@ -531,7 +617,9 @@ Function Get-SPWebServicesUrl
 		Import-Module WebAdministration
 				
 		# Add SharePoint Web Services (.svc) in warmup	
-		$iisSPWebServices = Get-ChildItem 'IIS:\Sites\SharePoint Web Services' -recurse | where {$_.Name -like "*svc"}
+		$iisSPWebServices = Get-ChildItem 'IIS:\Sites\SharePoint Web Services' -recurse | Where-Object -FilterScript { 
+			$_.Name -like '*svc'
+		}
 		if ($iisSPWebServices)
 		{
 			foreach ($iisSPWebService in $iisSPWebServices)
@@ -548,7 +636,7 @@ Function Get-SPWebServicesUrl
 # Name: 		Get-SPSSitesUrl
 # Description:	Get All Site Collections Url
 # ===================================================================================
-Function Get-SPSSitesUrl
+function Get-SPSSitesUrl
 {
 	Begin
 	{
@@ -657,7 +745,7 @@ Function Get-SPSSitesUrl
 # Name: 		Get-SPSHSNCUrl
 # Description:	Get All Host Named Site Collection Url
 # ===================================================================================
-Function Get-SPSHSNCUrl
+function Get-SPSHSNCUrl
 {
 	Add-LogContent "White" "--------------------------------------------------------------"
 	Add-LogContent "White" " - Get URLs of All Host Named Site Collection ..."
@@ -685,7 +773,7 @@ Function Get-SPSHSNCUrl
 # Name: 		Get-SPSWebAppUrl
 # Description:	Get All Web Applications Url
 # ===================================================================================
-Function Get-SPSWebAppUrl
+function Get-SPSWebAppUrl
 {
 	Add-LogContent "White" "--------------------------------------------------------------"
 	Add-LogContent "White" " - Get URLs of All Web Applications ..."
@@ -712,7 +800,7 @@ Function Get-SPSWebAppUrl
 # Name: 		Get-SPSWebRequest
 # Description:	Request Url with System.Net.WebClient Object
 # ===================================================================================
-Function Get-SPSWebRequest
+function Get-SPSWebRequest
 {
 	param
 	(
@@ -729,7 +817,7 @@ Function Get-SPSWebRequest
 	$WebRequestObject.Timeout = 80000
 
 	Add-LogContent "White" " - Web Request for url: $url"
-	$global:MailContent += " - Web Request for url: $url"
+	$mailLogContent += " - Web Request for url: $url"
 	try
 	{
 		# Get the response of $WebRequestObject
@@ -738,7 +826,7 @@ Function Get-SPSWebRequest
 		$TimeExec = ($TimeStop - $TimeStart).TotalSeconds
 		'{0,-30} : {1,10:#,##0.00} s' -f '   WebSite successfully loaded in', $TimeExec
 		#Add-LogContent "Green" "   * WebSite successfully loaded in $TimeExec s"
-		$global:MailContent += "<br><font color=green>WebSite successfully loaded in $TimeExec s</font><br>"
+		$mailLogContent += "<br><font color=green>WebSite successfully loaded in $TimeExec s</font><br>"
 	}
 	catch [Net.WebException]
 	{
@@ -760,7 +848,7 @@ Function Get-SPSWebRequest
 # Name: 		Invoke-SPSWebRequest
 # Description:	Multi-Threading Request Url with System.Net.WebClient Object
 # ===================================================================================
-Function Invoke-SPSWebRequest
+function Invoke-SPSWebRequest
 {
 	param
 	(
@@ -792,7 +880,7 @@ Function Invoke-SPSWebRequest
 
 		Process 
 		{        
-			Function Get-GenericWebRequest()
+			function Get-GenericWebRequest()
 			{
 				param
 				(
@@ -868,11 +956,14 @@ Function Invoke-SPSWebRequest
 			}
 	   }
 
-		Write-Host " - Please Wait.." -NoNewline
-
 		While ($Jobs.Result.IsCompleted -contains $false)
 		{
-		   Write-Host "." -NoNewline
+            if ($i -lt 100)
+            {
+                $i = $i+1
+            }
+
+		   Write-Progress -Activity 'Opening All sites Urls with Web Request' -Status 'Please Wait...' -Percentcomplete ($i)
 		   Start-Sleep -S 1
 		} 
 
@@ -899,60 +990,60 @@ Function Invoke-SPSWebRequest
 # Name: 		Get-IEWebRequest
 # Description:	Open Url in Internet Explorer Window
 # ===================================================================================
-Function Get-IEWebRequest
+function Get-IEWebRequest
 {
 	param
 	(
 		[Parameter(Mandatory=$true)]$urls
 	)
 	# Run Internet Explorer
-	$global:ie = New-Object -com "InternetExplorer.Application"
-	$global:ie.Navigate("about:blank")
-	$global:ie.visible = $true
-	$global:ieproc = (Get-Process -Name iexplore) | Where-Object {$_.MainWindowHandle -eq $global:ie.HWND}
+	$ieApp = New-Object -com "InternetExplorer.Application"
+	$ieApp.Navigate("about:blank")
+	$ieApp.visible = $true
+	$ieProc = (Get-Process -Name iexplore) | Where-Object {$_.MainWindowHandle -eq $ieApp.HWND}
 	
 	foreach ($url in $urls)
 	{
 		Add-LogContent "White" " - Internet Explorer - Browsing $url"
-		$global:MailContent += "- Browsing $url"
+		$mailLogContent += "- Browsing $url"
 		$TimeOut = 90
 		$Wait = 0
 		try
 		{
-			$global:ie.Navigate($url)
+			$ieApp.Navigate($url)
 			While ($ie.busy -like "True" -Or $Wait -gt $TimeOut)
 			{
 				Start-Sleep -s 1
 				$Wait++
 			}
 			Add-LogContent "Green" "   * WebSite successfully loaded in $Wait s"
-			$global:MailContent += "<br><font color=green>WebSite successfully loaded in $Wait s</font><br>"
+			$mailLogContent += "<br><font color=green>WebSite successfully loaded in $Wait s</font><br>"
 		}
 		catch
 		{
-			$pid = $global:ieproc.id
+			$pid = $ieProc.id
 			Add-LogContent "Red" "  IE not responding.  Closing process ID $pid"
-			$global:ie.Quit()
-			$global:ieproc | Stop-Process -Force
-			$global:ie = New-Object -com "InternetExplorer.Application"
-			$global:ie.Navigate("about:blank")
-			$global:ie.visible = $true
-			$global:ieproc = (Get-Process -Name iexplore)| Where-Object {$_.MainWindowHandle -eq $global:ie.HWND}
+			$ieApp.Quit()
+			$ieProc | Stop-Process -Force
+			$ieApp = New-Object -com "InternetExplorer.Application"
+			$ieApp.Navigate("about:blank")
+			$ieApp.visible = $true
+			$ieProc = (Get-Process -Name iexplore)| Where-Object {$_.MainWindowHandle -eq $ieApp.HWND}
 		}
 	}
 	# Quit Internet Explorer
-	if ($global:ie)
+	if ($ieApp)
 	{
 		Add-LogContent "White" "--------------------------------------------------------------"
 		Add-LogContent "White" " - Closing Internet Explorer ..."
-		$global:ie.Quit()
+		$ieApp.Quit()
 	}
 }
 # ===================================================================================
 # Name: 		Invoke-IEWebRequest
 # Description:	Multi-Threading Request Url in Internet Explorer Window
 # ===================================================================================
-Function Invoke-IEWebRequest
+function Invoke-IEWebRequest
 {
 	param
 	(
@@ -971,7 +1062,7 @@ Function Invoke-IEWebRequest
 
 	$Jobs = @()
 
-	$Urls | Where {
+	$Urls | Where-Object -FilterScript {
 		
 		$url = $_.Url
 		
@@ -979,7 +1070,7 @@ Function Invoke-IEWebRequest
 		$ie = New-Object -com "InternetExplorer.Application"
 		$ie.Navigate("about:blank")
 		$ie.visible = $true
-		$ieproc = (Get-Process -Name iexplore)| Where {$_.MainWindowHandle -eq $ie.HWND}
+		$ieproc = (Get-Process -Name iexplore)| Where-Object -FilterScript {$_.MainWindowHandle -eq $ie.HWND}
 		
 		$TimeOut = 90
 		$Wait = 0
@@ -1002,7 +1093,9 @@ Function Invoke-IEWebRequest
 			$ie = New-Object -com "InternetExplorer.Application"
 			$ie.Navigate("about:blank")
 			$ie.visible = $true
-			$ieproc = (Get-Process -Name iexplore)| where {$_.MainWindowHandle -eq $ie.HWND}
+			$ieproc = (Get-Process -Name iexplore) | Where-Object -FilterScript {
+				$_.MainWindowHandle -eq $ie.HWND
+			}
 		}
 		finally
 		{
@@ -1041,7 +1134,7 @@ Function Invoke-IEWebRequest
 # Func: Disable-LoopbackCheck
 # Desc: Disable Loopback Check
 # ===================================================================================
-Function Disable-LoopbackCheck
+function Disable-LoopbackCheck
 {
 	param
 	(
@@ -1105,7 +1198,7 @@ Function Disable-LoopbackCheck
 # Func: Backup-HostsFile
 # Desc: Backup HOSTS File System
 # ====================================================================================
-Function Backup-HostsFile
+function Backup-HostsFile
 {
 	Param
 	(
@@ -1124,7 +1217,7 @@ Function Backup-HostsFile
 # Func: Restore-HostsFile
 # Desc: Restore previous HOSTS File System
 # ====================================================================================
-Function Restore-HostsFile
+function Restore-HostsFile
 {
 	Param
 	(
@@ -1142,7 +1235,7 @@ Function Restore-HostsFile
 # Func: Clear-HostsFileCopy
 # Desc: Clear previous HOSTS File copy
 # ====================================================================================
-Function Clear-HostsFileCopy
+function Clear-HostsFileCopy
 {
 	Param
 	(
@@ -1166,7 +1259,7 @@ Function Clear-HostsFileCopy
 			Add-LogContent "White" " - Cleaning backup HOSTS files in $hostsFolderPath ..."
 			foreach ($copyFile in $copyFiles) 
 			{
-				if ($copyFile -ne $NULL)
+				if ($null -ne $copyFile)
 				{
 					Add-LogContent "Yellow" "   * Deleting File $copyFile ..."
 					Remove-Item $copyFile.FullName | out-null
@@ -1184,7 +1277,7 @@ Function Clear-HostsFileCopy
 # Func: Add-HostsEntry
 # Desc: This writes URLs to the server's local hosts file and points them to the server itself
 # ====================================================================================
-Function Add-HostsEntry
+function Add-HostsEntry
 {
 	param
 	(
@@ -1246,7 +1339,7 @@ Function Add-HostsEntry
 # Func: Add-SPSUserPolicy
 # Desc: Applies Read Access to the specified accounts for a web application
 # ===================================================================================
-Function Add-SPSUserPolicy
+function Add-SPSUserPolicy
 {
 	param
 	(	
@@ -1263,7 +1356,7 @@ Function Add-SPSUserPolicy
 			$webapp = [Microsoft.SharePoint.Administration.SPWebApplication]::Lookup("$url")
 			#$user = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
 			
-			$displayName = "WarmUp Account"
+			$displayName = 'WarmUp Account'
 			
 			# If the web app is not Central Administration 
 			if ($webapp.IsAdministrationWebApplication -eq $false)
@@ -1274,12 +1367,17 @@ Function Add-SPSUserPolicy
 					#$user = 'i:0#.w|'+$userName
 					$user = (New-SPClaimsPrincipal -identity $userName -identitytype 1).ToEncodedString()  
 				}
-				else{$user = $userName}
+				else
+				{
+					$user = $userName
+				}
 				Add-LogContent "White" " - Applying Read access for $user account to $url..."
 				[Microsoft.SharePoint.Administration.SPPolicyCollection]$policies = $webapp.Policies
-				$PolicyExist = $policies | where {$_.Displayname -eq "WarmUp Account"}
+				$policyExist = $policies | Where-Object -FilterScript {
+					$_.Displayname -eq 'WarmUp Account'
+				}
 				
-				if ($PolicyExist)
+				if ($policyExist)
 				{
 					Add-LogContent "Yellow" "   * Read access for WarmUp Account already exists - skipping."
 				}
@@ -1287,7 +1385,7 @@ Function Add-SPSUserPolicy
 				{
 					[Microsoft.SharePoint.Administration.SPPolicy]$policy = $policies.Add($user, $displayName)
 					$policyRole = $webApp.PolicyRoles.GetSpecialRole([Microsoft.SharePoint.Administration.SPPolicyRoleType]::FullRead)
-					if ($policyRole -ne $null)
+					if ($null -ne $policyRole)
 					{
 						$policy.PolicyRoleBindings.Add($policyRole)
 					}
@@ -1310,7 +1408,7 @@ Function Add-SPSUserPolicy
 # Name: 		Add-IETrustedSite
 # Description:	Add Url in Security Option - Intranet Zone
 # ===================================================================================
-Function Add-IETrustedSite
+function Add-IETrustedSite
 {
 	param
 	(
@@ -1353,7 +1451,7 @@ Function Add-IETrustedSite
 # Name: 		Clear-IECache
 # Description:	Clear Internet Explorer's cache
 # ===================================================================================
-Function Clear-IECache
+function Clear-IECache
 {
 	$RunDll32 = "$env:windir\System32\rundll32.exe"
 	if (Test-Path -Path $RunDll32)
@@ -1377,7 +1475,7 @@ Function Clear-IECache
 # Name: 		Disable-IEESC
 # Description:	Disable Internet Explorer Enhanced Security Configuration for administrators
 # ===================================================================================
-Function Disable-IEESC
+function Disable-IEESC
 {
 	if ($xmlinput.Configuration.Settings.DisableIEESC -eq $true)
 	{
@@ -1407,7 +1505,7 @@ Function Disable-IEESC
 # Func: Disable-IEFirstRun
 # Desc: Disable First Run for Internet Explorer
 # ===================================================================================
-Function Disable-IEFirstRun
+function Disable-IEFirstRun
 {
 	Add-LogContent "White" "--------------------------------------------------------------"
 	$lsaPath = "HKCU:\Software\Microsoft\Internet Explorer\Main"
@@ -1445,8 +1543,8 @@ Add-LogContent "Green" "| Started on : $DateStarted by $currentuser|"
 Add-LogContent "Green" "| PowerShell Version: $psVersion |"
 Add-LogContent "Green" "| SharePoint Version: $spsVersion |"
 Add-LogContent "Green" "-------------------------------------"
-$global:MailContent = "Automated Script - WarmUp Urls - Started on: $DateStarted <br>"
-$global:MailContent += "SharePoint Server : $env:COMPUTERNAME<br>"
+$mailLogContent = "Automated Script - WarmUp Urls - Started on: $DateStarted <br>"
+$mailLogContent += "SharePoint Server : $env:COMPUTERNAME<br>"
 
 # Check Permission Level
 if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))
@@ -1510,7 +1608,7 @@ else
 			# Request Url with Internet Explorer for All Site Collections Urls
 			Add-LogContent "White" "--------------------------------------------------------------"
 			Add-LogContent "White" " - Opening All sites Urls with Internet Explorer ..."
-			$global:MailContent += "<br>Opening All sites Urls with Internet Explorer ... <br>"
+			$mailLogContent += "<br>Opening All sites Urls with Internet Explorer ... <br>"
 			$InvokeResults = Invoke-IEWebRequest -Urls $getSPSites -throttleLimit $NumThrottle
 		}
 		else
@@ -1518,7 +1616,7 @@ else
 			# Request Url with System.Net.WebClient Object for All Site Collections Urls
 			Add-LogContent "White" "--------------------------------------------------------------"
 			Add-LogContent "White" " - UseIEforWarmUp is set to False - Opening All sites Urls with Web Request ..."
-			$global:MailContent += "<br>Opening All sites Urls with Web Request Object, see log files for more details<br>"
+			$mailLogContent += "<br>Opening All sites Urls with Web Request Object, see log files for more details<br>"
 			$InvokeResults = Invoke-SPSWebRequest -Urls $getSPSites -throttleLimit $NumThrottle
 		}
 		# Show the results
@@ -1552,8 +1650,8 @@ else
 	Add-LogContent "Green" "| Started on : $DateStarted |"
 	Add-LogContent "Green" "| Completed on : $DateEnded |"
 	Add-LogContent "Green" "-----------------------------------"
-	$global:MailContent += "<br>"
-	$global:MailContent += "Automated Script - WarmUp Urls - Completed on: $DateEnded"
+	$mailLogContent += "<br>"
+	$mailLogContent += "Automated Script - WarmUp Urls - Completed on: $DateEnded"
 
 	Trap {Continue}
 	
@@ -1566,7 +1664,7 @@ else
 	Save-LogFile $logFile
 	
 	# Send Email with log file in attachment - For settings see XML input file
-	Send-SPSLog -MailAttachment $logFile -MailBody $global:MailContent
+	Send-SPSLog -MailAttachment $logFile -MailBody $mailLogContent
 	
 	Exit
 }

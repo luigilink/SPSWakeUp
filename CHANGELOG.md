@@ -3,6 +3,15 @@
 ### Unreleased
 
 * Support of Form Based Authentication (XML element removed from SPSWakeUP.xml)
+* Update description of script
+* Remove all global variables
+* Add functions:
+ - New-VerboseMessage
+ - New-WarningMessage
+* Improved code styling by following PowerShell guidelines:
+ - Changing alias to its full content
+ - Function Names Must Use Approved Verbs
+ - Using Named Parameters Instead of Positional Parameters
 
 ### 2.1.4
 
