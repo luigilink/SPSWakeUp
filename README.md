@@ -2,9 +2,7 @@
 
 ## Description
 
-SPSWakeUp is a PowerShell script tool to warm up all site collection in your SharePoint environment. It's compatible with all supported versions for SharePoint (2010, 2013 and 2016).
-
-[Download the latest release, Click here!](https://github.com/luigilink/spswakeup/releases/latest)
+SPSWakeUp is a PowerShell script tool to warm up all site collection in your SharePoint environment. It's compatible with all supported versions for SharePoint (2010, 2013 and 2016). [Download the latest release, Click here!](https://github.com/luigilink/spswakeup/releases/latest)
 
 ## Features
 
