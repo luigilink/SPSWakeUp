@@ -1,4 +1,7 @@
+# SPSWakeUp - Wake Up Your SharePoint
+
 ## Description
+
 SPSWakeUp is a PowerShell script tool to warm up all site collection in your SharePoint environment. It's compatible with all supported versions for SharePoint (2010, 2013 and 2016).
 
 ## Features
@@ -14,7 +17,7 @@ Use Internet Explorer to download JS, CSS and Pictures files, Log script results
 This current version supports FBA and Windows Authentication (Claims, NTLM and Kerberos).
 For more details of available features [Click here!](https://github.com/luigilink/spswakeup/wiki/Features)
 
-## Requirements 
+## Requirements
 
 The minimum PowerShell version required is 2.0, which ships in Windows Server 2008 R2 (or higher versions).
 The preferred version is PowerShell 5.0 or higher, which ships with Windows 10 or Windows Server 2016. 

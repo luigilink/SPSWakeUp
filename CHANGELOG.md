@@ -1,23 +1,24 @@
 # Change log for SPSWakeUp
 
-### Unreleased
+## Unreleased
 
 * Support of Form Based Authentication (XML element removed from SPSWakeUP.xml)
 * Update description of script
 * Remove all global variables
+* Update Readme.md
 * Add functions:
- - New-VerboseMessage
- - New-WarningMessage
+  * New-VerboseMessage
+  * New-WarningMessage
 * Improved code styling by following PowerShell guidelines:
- - Changing alias to its full content
- - Function Names Must Use Approved Verbs
- - Using Named Parameters Instead of Positional Parameters
+  * Changing alias to its full content
+  * Function Names Must Use Approved Verbs
+  * Using Named Parameters Instead of Positional Parameters
 
 ### 2.1.4
 
 * Change SPSWakeUP.xml file:
- - Delete CustomUrls and ExcludeUrls XML Elements
- - Delete FBA.ServiceAccount XML Element
+  * Delete CustomUrls and ExcludeUrls XML Elements
+  * Delete FBA.ServiceAccount XML Element
 * Fix Exception log
 * Update function Get-SPSWebAppUrl: Check if url contains computername
 * Check if hostEntries variable is not null before change HOST system file
@@ -26,13 +27,13 @@
 ### 2.1.3
 
 * Add functions:
- - Get-SPWebServicesUrl
- - Backup-HostsFile
- - Restore-HostsFile
- - Clear-HostsFileCopy
+  * Get-SPWebServicesUrl
+  * Backup-HostsFile
+  * Restore-HostsFile
+  * Clear-HostsFileCopy
 * Add variables for HOSTS and Backup Hosts file with today's date
- - hostsFile
- - hostsFileCopy
+  * hostsFile
+  * hostsFileCopy
 * Improved code styling by following PowerShell guidelines
 
 ### 2.1.2
