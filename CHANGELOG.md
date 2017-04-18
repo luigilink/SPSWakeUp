@@ -5,14 +5,17 @@
 * Support of Form Based Authentication (XML element removed from SPSWakeUP.xml)
 * Update description of script
 * Remove all global variables
+* Remove Get-SPSUserPassword function
+* Remove mailLogContent variable
+* Rename Add-LogContent function to Write-LogContent
 * Update Readme.md
 * Add functions:
-  * New-VerboseMessage
-  * New-WarningMessage
+  * Write-VerboseMessage
 * Improved code styling by following PowerShell guidelines:
   * Changing alias to its full content
   * Function Names Must Use Approved Verbs
   * Using Named Parameters Instead of Positional Parameters
+  * Rename logfolder by scriptRootPath
 
 ### 2.1.4
 

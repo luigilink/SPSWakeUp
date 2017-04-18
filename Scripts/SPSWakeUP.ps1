@@ -12,17 +12,22 @@
 	
 	.PARAMETER InputFile
 	Need parameter input file, example: 
-	PS D:\> E:\SCRIPT\SPSWakeUP.ps1 "E:\SCRIPT\SPSWakeUP.xml"
-	
+	PS D:\> E:\SCRIPT\SPSWakeUP.ps1 -InputFile "E:\SCRIPT\SPSWakeUP.xml"
+
+	.PARAMETER Install
+	Use the switch Install parameter if you want to add the warmup script in taskscheduler
+	PS D:\> E:\SCRIPT\SPSWakeUP.ps1 -Install
+
 	.EXAMPLE
-	SPSWakeUP.ps1 "E:\SCRIPT\SPSWakeUP.xml"
+	SPSWakeUP.ps1 -InputFile "E:\SCRIPT\SPSWakeUP.xml"
+	SPSWakeUP.ps1 -Install
 	
 	.NOTES  
 	FileName:	SPSWarmUP.ps1
-	Author:		Jean-Cyril DROUHIN
-	Date:		December 2, 2016
+	Author:		luigilink (Jean-Cyril DROUHIN)
+	Date:		April 18, 2017
 	Version:	2.1.5
-	Licence:	MS-PL
+	Licence:	MIT License
 	
 	.LINK
 	https://github.com/luigilink/spswakeup
@@ -37,36 +42,31 @@ param
 	[switch]
 	$Install
 )
-Clear-Host
-$Host.UI.RawUI.WindowTitle = " -- WarmUP script -- $env:COMPUTERNAME --"
-$spsWakeupVersion = "2.1.5"
 
-# Logging PowerShell script in log file 
-$logfolder = Split-Path -parent $MyInvocation.MyCommand.Definition
-$logTime = Get-Date -Format yyyy-MM-dd_H-mm
-$logFile = $logfolder+"\WarmUP_script_$logTime.log"
-$currentuser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
+Clear-Host
+$Host.UI.RawUI.WindowTitle = "WarmUP script running on $env:COMPUTERNAME"
+
+# Define variable
+$spsWakeupVersion = '2.1.5'
+$currentUser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
+$scriptRootPath = Split-Path -parent $MyInvocation.MyCommand.Definition
+
+$pathLogFile = Join-Path -Path $scriptRootPath -ChildPath ('WarmUP_script_' + (Get-Date -Format yyyy-MM-dd_H-mm) + '.log')
+$logFileContent =  New-Object -TypeName System.Collections.Generic.List[string]
+
+$hostEntries =  New-Object -TypeName System.Collections.Generic.List[string]
+$hostsFile = "$env:windir\System32\drivers\etc\HOSTS"
+$hostsFileCopy = $hostsFile + '.' + (Get-Date -UFormat "%y%m%d%H%M%S").ToString() + '.copy'
 
 # Get the content of the SPSWakeUP.xml file
 if (!$InputFile)
 {
-	$InputFile = $logfolder+"\SPSWakeUP.xml"
+	$InputFile = Join-Path -Path $scriptRootPath -ChildPath 'SPSWakeUP.xml'
 }
 if (Test-Path -Path $InputFile)
 {
 	[xml]$xmlinput = (Get-Content -Path $InputFile -ReadCount 0)
 }
-
-# Define Global Variable
-New-variable -Name logFileContent -force
-New-variable -Name mailLogContent -force
-New-Variable -Name hostEntries -Force
-$logFileContent =  New-Object System.Collections.Generic.List[string]
-
-# Define variable for HOSTS and Backup Hosts file with today's date
-$hostEntries =  New-Object System.Collections.Generic.List[string]
-$hostsFile = "$env:windir\System32\drivers\etc\HOSTS"
-$hostsFileCopy = $hostsFile + '.' + (Get-Date -UFormat "%y%m%d%H%M%S").ToString() + '.copy'
 
 # ====================================================================================
 # INTERNAL FUNCTIONS
@@ -79,7 +79,7 @@ $hostsFileCopy = $hostsFile + '.' + (Get-Date -UFormat "%y%m%d%H%M%S").ToString(
     .PARAMETER Message
     String containing the key of the localized verbose message.
 #>
-function New-VerboseMessage
+function Write-VerboseMessage
 {
     [CmdletBinding()]
     [Alias()]
@@ -91,54 +91,8 @@ function New-VerboseMessage
         [System.String]
         $Message
     )
+
     Write-Verbose -Message ((Get-Date -format yyyy-MM-dd_HH-mm-ss) + ": $Message");
-}
-<#
-    .SYNOPSIS
-        Displays a localized warning message.
-
-    .PARAMETER WarningType
-        String containing the key of the localized warning message.
-    
-    .PARAMETER FormatArgs
-        Collection of strings to replace format objects in warning message.
-#>
-function New-WarningMessage
-{
-    [CmdletBinding()]
-    param
-    (
-        [Parameter(Mandatory = $true)]
-        [ValidateNotNullOrEmpty()]
-        [String]
-        $WarningType,
-
-        [String[]]
-        $FormatArgs
-    )
-
-    ## Attempt to get the string from the localized data
-    $warningMessage = $LocalizedData.$WarningType
-
-    ## Ensure there is a message present in the localization file
-    if (!$warningMessage)
-    {
-        $errorParams = @{
-            ErrorType = 'NoKeyFound'
-            FormatArgs = $WarningType
-            ErrorCategory = 'InvalidArgument'
-            TargetObject = 'New-WarningMessage'
-        }
-
-        ## Raise an error indicating the localization data is not present
-        throw New-TerminatingError @errorParams 
-    }
-
-    ## Apply formatting
-    $warningMessage = $warningMessage -f $FormatArgs
-
-    ## Write the message as a warning
-    Write-Warning -Message $warningMessage
 }
 # ===================================================================================
 # Func: Write-LogException
@@ -148,7 +102,7 @@ function New-WarningMessage
     .SYNOPSIS
     Write Exception in powershell session and in error file
 
-    .PARAMETER ErrLog
+    .PARAMETER Message
     Object containing the exception of a try/catch sequence.
 #>
 function Write-LogException
@@ -159,17 +113,18 @@ function Write-LogException
 	param
 	(
 		[Parameter(Mandatory=$true)]
-		$ErrLog
+		$Message
 	)
-	Add-LogContent "Yellow" "$($ErrLog.Exception.Message)" -noNewLine
-	$pathErrLog = Join-Path -Path $logfolder -ChildPath (((Get-Date).Ticks.ToString())+"_errlog.xml")
-	$ErrLog | Export-Clixml -Path $pathErrLog -Depth 3
-    Add-LogContent "Yellow" " For more informations, see errlog.xml file:"
-    Add-LogContent "Yellow" "$pathErrLog"
+
+	Write-Warning -Message $Message.Exception.Message
+	$pathErrLog = Join-Path -Path $scriptRootPath -ChildPath (((Get-Date).Ticks.ToString()) + '_errlog.xml')
+	Export-Clixml -Path $pathErrLog -InputObject $Message -Depth 3
+    Write-LogContent -Message 'For more informations, see errlog.xml file:'
+    Write-LogContent -Message $pathErrLog
 }
 # ===================================================================================
 # Func: Save-LogFile
-# Desc: Save logFile in current folder
+# Desc: Save the log file in current folder
 # ===================================================================================
 function Save-LogFile
 {
@@ -179,44 +134,35 @@ function Save-LogFile
 		[string]
 		$Path
 	)
+
 	$pathLogFile = New-Object -TypeName System.IO.StreamWriter($Path)
 	foreach ($logFileC in $logFileContent)
 	{
 		$pathLogFile.WriteLine($logFileC)
 	}
+
 	$pathLogFile.Close()
 }
 # ===================================================================================
-# Func: Add-LogContent
-# Desc: Add Content in log file
+# Func: Write-LogContent
+# Desc: Add Content in log file and write-output in console
 # ===================================================================================
-function Add-LogContent
+function Write-LogContent
 {
-	param
-	(
-		[Parameter(Mandatory=$true)]
-		[string]
-		$logColor,
+	[CmdletBinding()]
+    [Alias()]
+    [OutputType([String])]
+    param
+    (
+        [Parameter(Mandatory=$true)]
+		[ValidateNotNull()]         
+        [System.String]
+        $Message
+    )
 
-		[Parameter(Mandatory=$true)]
-		[string]
-		$logText,
+	Write-Output $Message
 
-		[Parameter(Mandatory=$false)]
-		[switch]
-		$noNewLine
-	)
-	if ($noNewLine)
-	{
-		Write-Host -ForegroundColor $logColor "$logText" -NoNewline
-	}
-	else
-	{
-		Write-Host -ForegroundColor $logColor "$logText"
-	}
-
-	$logFileContent.Add($logText)
-	$mailLogContent += $logText
+	$logFileContent.Add($Message)
 }
 # ===================================================================================
 # Func: Send-SPSLog
@@ -239,16 +185,16 @@ function Send-SPSLog
 		$smtpServer = $xmlinput.Configuration.EmailNotification.SMTPServer
 		$mailSubject = "Automated Script - WarmUp Urls - $env:COMPUTERNAME"
 
-		Add-LogContent "White" "--------------------------------------------------------------"
-		Add-LogContent "White" " - Sending Email with Log file to $mailAddress ..."
+		Write-LogContent -Message '--------------------------------------------------------------'
+		Write-LogContent -Message "Sending Email with Log file to $mailAddress ..."
 		try
 		{
 			Send-MailMessage -To $mailAddress -From $mailAddress -Subject $mailSubject -Body $MailBody -BodyAsHtml -SmtpServer $smtpServer -Attachments $MailAttachment -ea stop
-			Add-LogContent "Green" " - Email sent successfully to $mailAddress"
+			Write-LogContent -Message "Email sent successfully to $mailAddress"
 		}
 		catch 
 		{
-			Write-LogException -ErrLog "$_"
+			Write-LogException -Message $_
 		}
 	}
 }
@@ -287,19 +233,19 @@ function Clear-SPSLog
 			
 			if ($files)
 			{
-				Add-LogContent "White" "--------------------------------------------------------------"
-				Add-LogContent "White" " - Cleaning log files in $path ..."
+				Write-LogContent -Message '--------------------------------------------------------------'
+				Write-LogContent -Message "Cleaning log files in $path ..."
 				foreach ($file in $files) 
 				{
 					if ($null -ne $file)
 					{
-						Add-LogContent "Yellow" " * Deleting file $file ..."
+						Write-LogContent -Message "Deleting file $file ..."
 						Remove-Item $file.FullName | out-null
 					}
 					else
 					{
-						Add-LogContent "White" " - No more log files to delete "
-						Add-LogContent "White" "--------------------------------------------------------------"
+						Write-LogContent -Message 'No more log files to delete'
+						Write-LogContent -Message '--------------------------------------------------------------'
 					}
 				}
 			}
@@ -307,50 +253,14 @@ function Clear-SPSLog
 	}
 	else
 	{
-		Add-LogContent "White" "--------------------------------------------------------------" 
-		Add-LogContent "Yellow" " Clean of logs is disabled in XML input file. "
-		Add-LogContent "White" "--------------------------------------------------------------"	
+		Write-LogContent -Message '--------------------------------------------------------------' 
+		Write-LogContent -Message 'Clean of logs is disabled in XML input file.'
+		Write-LogContent -Message '--------------------------------------------------------------'	
 	}
 }
 #endregion
 
 #region Installation in Task Scheduler
-# ===================================================================================
-# Func: Get-SPSUserPassword
-# Desc: Get Password from Service Account
-# ===================================================================================
-function Get-SPSUserPassword
-{
-	param 
-	(
-		[Parameter(Mandatory=$true)]
-		[string]
-		$user
-	)
-	[System.Reflection.Assembly]::LoadWithPartialName('Microsoft.VisualBasic') | Out-Null
-	$password = [Microsoft.VisualBasic.Interaction]::InputBox("Enter the password of $user", "User Account Information", "")
-	try
-	{
-		if (($password -ne "") -and ($user -ne ""))
-		{
-			$currentDomain = "LDAP://" + ([ADSI]"").distinguishedName
-			Add-LogContent "White" " - Account `"$user`" ..." -noNewLine
-			$dom = New-Object System.DirectoryServices.DirectoryEntry($currentDomain,$user,$password)
-			if ($null -eq $dom.Path)
-			{
-				Write-Host -BackgroundColor Red -ForegroundColor Black "Invalid!"
-			}
-			else{Write-Host -ForegroundColor Black -BackgroundColor Green "Verified."}
-		}
-	}
-	catch
-	{
-		Add-LogContent "Yellow" "An error occurred checking password for `"$user`""
-		Write-LogException $_	
-	}
-
-	$password
-}
 # ===================================================================================
 # Func: Add-SPSTask
 # Desc: Add SPSWakeUP Task in Task Scheduler
@@ -381,7 +291,7 @@ function Add-SPSTask
 		$TaskSPSWKP = $TaskFolder.GetTasks(0) | Where-Object -FilterScript {
 			$_.Name -eq $TaskName
 		}
-		$TaskCmd = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+		$TaskCmd = 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe'
 		$inputFileFullPath = (Get-Item $InputFile).FullName;
 		$TaskCmdArg = 
 @"
@@ -390,17 +300,16 @@ function Add-SPSTask
 
 		if ($TaskSPSWKP)
 		{
-			Add-LogContent "Yellow" "   * Shedule Task already exists - skipping."
+			Write-Warning -Message 'Shedule Task already exists - skipping.'
 		}
 		else
 		{
-			Add-LogContent "White" "--------------------------------------------------------------"
-			Add-LogContent "White" " - Adding SPSWakeUP script in Task Scheduler Service ..."
+			Write-LogContent -Message '--------------------------------------------------------------'
+			Write-LogContent -Message 'Adding SPSWakeUP script in Task Scheduler Service ...'
 
 			# Get Credentials for Task Schedule
 			$TaskAuthor = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
 			$TaskUser =  $xmlinput.Configuration.Install.ServiceAccount.UserName
-			#$TaskUserPwd = Get-SPSUserPassword $TaskUser
 			$TaskUserPwd = $xmlinput.Configuration.Install.ServiceAccount.Password
 
 			# Add a New Task Schedule
@@ -447,12 +356,11 @@ function Add-SPSTask
 			try
 			{
 				$TaskFolder.RegisterTaskDefinition( $TaskName, $TaskSchd, 6, $TaskUser , $TaskUserPwd , 1)
-				Add-LogContent "Green" "   * Successfully added SPSWakeUP script in Task Scheduler Service"
+				Write-LogContent -Message 'Successfully added SPSWakeUP script in Task Scheduler Service'
 			}
 			catch
 			{
-				Add-LogContent "Yellow" "An error occurred adding Scheduled Task for `"$TaskUser`""
-				Write-LogException $_			    
+				Write-LogException -Message $_			    
 			}
 		}
 	}
@@ -468,10 +376,10 @@ function Add-PSSharePoint
 {
 	if ($null -eq (Get-PsSnapin | Where-Object -FilterScript {$_.Name -eq "Microsoft.SharePoint.PowerShell"}))
 	{
-		Add-LogContent "White" "--------------------------------------------------------------"
-		Add-LogContent "Cyan" " - Loading SharePoint Powershell Snapin..."
+		Write-LogContent -Message '--------------------------------------------------------------'
+		Write-LogContent -Message 'Loading SharePoint Powershell Snapin ...'
 		Add-PsSnapin Microsoft.SharePoint.PowerShell -ErrorAction Stop | Out-Null
-		Add-LogContent "White" "--------------------------------------------------------------"
+		Write-LogContent -Message '--------------------------------------------------------------'
 	}
 }
 # ===================================================================================
@@ -480,10 +388,10 @@ function Add-PSSharePoint
 # ===================================================================================
 function Add-RASharePoint
 {
-	Add-LogContent "White" "--------------------------------------------------------------"
-	Add-LogContent "Cyan" " - Loading Microsoft.SharePoint Assembly..."
+	Write-LogContent -Message '--------------------------------------------------------------'
+	Write-LogContent -Message 'Loading Microsoft.SharePoint Assembly ...'
 	[System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SharePoint") | Out-Null
-	Add-LogContent "White" "--------------------------------------------------------------"
+	Write-LogContent -Message '--------------------------------------------------------------'
 }
 # ===================================================================================
 # Name: 		Add-SystemWeb
@@ -493,10 +401,10 @@ function Add-SystemWeb
 {
 	if ($xmlinput.Configuration.Settings.UseIEforWarmUp -eq $false)
 	{
-		Add-LogContent "White" "--------------------------------------------------------------"
-		Add-LogContent "Cyan" " - Loading System.Web ..."
+		Write-LogContent -Message '--------------------------------------------------------------'
+		Write-LogContent -Message 'Loading System.Web ...'
 		[System.Reflection.Assembly]::LoadWithPartialName("system.web") | Out-Null
-		Add-LogContent "White" "--------------------------------------------------------------"
+		Write-LogContent -Message '--------------------------------------------------------------'
 	}
 }
 # ===================================================================================
@@ -507,8 +415,8 @@ function Get-SPSThrottleLimit
 {
 	Begin
 	{
-		Add-LogContent "White" "--------------------------------------------------------------"
-		Add-LogContent "White" " - Get Number Of Throttle Limit (from NumberOfLogicalProcessors)"
+		Write-LogContent -Message '--------------------------------------------------------------'
+		Write-LogContent -Message 'Get Number Of Throttle Limit (from NumberOfLogicalProcessors)'
 		[int]$NumThrottle = 8 
 	}
 	
@@ -529,7 +437,7 @@ function Get-SPSThrottleLimit
 		{
 			$NumThrottle = 2*$numLogicalCpu
 		}
-		Add-LogContent "White" " * Number Of Throttle Limit will be $NumThrottle"
+		Write-LogContent -Message "Number Of Throttle Limit will be $NumThrottle"
 	}
 	End
 	{	
@@ -629,7 +537,7 @@ function Get-SPWebServicesUrl
 				[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $iisSPWebServiceUrl.ResponseUri.AbsoluteUri.ToString()))
 			}
 		}
-		Add-LogContent "White" "   * SharePoint Web services included in WarmUp Urls"
+		Write-LogContent -Message 'SharePoint Web services included in WarmUp Urls'
 	}
 }
 # ===================================================================================
@@ -638,108 +546,89 @@ function Get-SPWebServicesUrl
 # ===================================================================================
 function Get-SPSSitesUrl
 {
-	Begin
+	[CmdletBinding()]
+    [OutputType([System.Collections.ArrayList])]
+
+	$tbSitesURL = New-Object -TypeName System.Collections.ArrayList
+	$defaultUrlZone = [Microsoft.SharePoint.Administration.SPUrlZone]::Default
+	[bool]$fbaSParameter = $false
+	[bool]$winParameter = $true
+
+	try
 	{
-		Add-LogContent "White" "--------------------------------------------------------------"
-		Add-LogContent "White" " - Get URLs of All Site Collection ... Please waiting"
-		# Variable Declaration
-		$tbSitesURL = New-Object System.Collections.ArrayList
-		$defaultUrlZone = [Microsoft.SharePoint.Administration.SPUrlZone]::Default
-		[bool]$fbaSParameter = $false
-		[bool]$winParameter = $true
-		$NumSites = 0
-	}
-	
-	Process
-	{
-		try
+		$topologySvcUrl = 'http://localhost:32843/Topology/topology.svc'
+		[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $topologySvcUrl))
+		
+		# Get url of CentralAdmin if include in input xml file
+		if ($xmlinput.Configuration.Settings.IncludeCentralAdmin -eq $true)
 		{
-            $topologySvcUrl = "http://localhost:32843/Topology/topology.svc"
-            [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $topologySvcUrl))
-            Add-LogContent "White" "   * SharePoint Web service Topology.svc included in WarmUp Urls"
-			
-			# Get url of CentralAdmin if include in input xml file
-			if ($xmlinput.Configuration.Settings.IncludeCentralAdmin -eq $true)
+			$webAppADM = Get-SPWebApplication -IncludeCentralAdministration | Where-Object -FilterScript {
+				$_.IsAdministrationWebApplication
+			}
+			$siteADM = $webAppADM.Url
+			[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM))
+			[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM"Lists/HealthReports/AllItems.aspx"))
+			[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM"_admin/FarmServers.aspx"))
+			[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM"_admin/Server.aspx"))
+			[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM"_admin/WebApplicationList.aspx"))
+			[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM"_admin/ServiceApplications.aspx"))
+		}
+	
+		# Get Url of all site collection
+		#$WebSrv = [microsoft.sharepoint.administration.spwebservice]::ContentService
+		$webApps = Get-SPWebApplication
+	
+		foreach ($webApp in $webApps)
+		{
+			$iisSettings = $webApp.GetIisSettingsWithFallback($defaultUrlZone)
+			$getClaimProviderForms = $iisSettings.ClaimsAuthenticationProviders | Where-Object -FilterScript {
+				$_.ClaimProviderName -eq "Forms"
+			}
+			$getClaimProviderWindows = $iisSettings.ClaimsAuthenticationProviders | Where-Object -FilterScript {
+				$_.ClaimProviderName -eq "AD"
+			}
+		
+			if ($getClaimProviderForms)
 			{
-				$webAppADM = Get-SPWebApplication -IncludeCentralAdministration | Where-Object -FilterScript {
-					$_.IsAdministrationWebApplication
-				}
-				$siteADM = $webAppADM.Url
-				[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM))
-				[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM"Lists/HealthReports/AllItems.aspx"))
-				[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM"_admin/FarmServers.aspx"))
-				[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM"_admin/Server.aspx"))
-				[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM"_admin/WebApplicationList.aspx"))
-				[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM"_admin/ServiceApplications.aspx"))
-				Add-LogContent "White" "   * Central Administration included in WarmUp Urls"
+				$fbaSParameter = $true
 			}
 			else
 			{
-				Add-LogContent "White" "   * Central Administration excluded from WarmUp Urls"
+				$fbaSParameter=$false
 			}
-		
-			# Get Url of all site collection
-            #$WebSrv = [microsoft.sharepoint.administration.spwebservice]::ContentService
-			$webApps = Get-SPWebApplication
-		
-			foreach ($webApp in $webApps)
-			{
-				$iisSettings = $webApp.GetIisSettingsWithFallback($defaultUrlZone)
-				$getClaimProviderForms = $iisSettings.ClaimsAuthenticationProviders | Where-Object -FilterScript {
-					$_.ClaimProviderName -eq "Forms"
-				}
-				$getClaimProviderWindows = $iisSettings.ClaimsAuthenticationProviders | Where-Object -FilterScript {
-					$_.ClaimProviderName -eq "AD"
-				}
 			
-				if ($getClaimProviderForms)
-				{
-					$fbaSParameter = $true
-				}
-				else
-				{
-					$fbaSParameter=$false
-				}
-				
-				if ($getClaimProviderWindows)
-				{
-					$winParameter = $true
-				}
-				else
-				{
-					$winParameter=$false
-				}
-
-				$sites = $webApp.sites
-				foreach ($site in $sites)
-				{
-					if (($fbaSParameter -eq $true) -and ($winParameter -eq $true))
-					{
-						$siteUrl = $site.Url + "/_windows/default.aspx?ReturnUrl=/_layouts/15/Authenticate.aspx?Source=%2f"
-					}
-					else
-					{
-						$siteUrl = $site.Url
-					}
-					[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteUrl -FBA $fbaSParameter -Win $winParameter))
-					$site.Dispose()
-					$NumSites++
-				}
-
+			if ($getClaimProviderWindows)
+			{
+				$winParameter = $true
 			}
-			Add-LogContent "White" "   * $NumSites site collection will be waking up ..."
-		}
-		catch
-		{
-			Add-LogContent "Yellow" "An error occurred getting all site collections"
-			Write-LogException $_		
+			else
+			{
+				$winParameter=$false
+			}
+
+			$sites = $webApp.sites
+			foreach ($site in $sites)
+			{
+				if (($fbaSParameter -eq $true) -and ($winParameter -eq $true))
+				{
+					$siteUrl = $site.Url + "/_windows/default.aspx?ReturnUrl=/_layouts/15/Authenticate.aspx?Source=%2f"
+				}
+				else
+				{
+					$siteUrl = $site.Url
+				}
+				[void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteUrl -FBA $fbaSParameter -Win $winParameter))
+				$site.Dispose()
+			}
+
 		}
 	}
-	
-	End
+	catch
 	{
-		$tbSitesURL
+		Write-LogException -Message $_		
 	}
+
+	$tbSitesURL
 }
 # ===================================================================================
 # Name: 		Get-SPSHSNCUrl
@@ -747,12 +636,12 @@ function Get-SPSSitesUrl
 # ===================================================================================
 function Get-SPSHSNCUrl
 {
-	Add-LogContent "White" "--------------------------------------------------------------"
-	Add-LogContent "White" " - Get URLs of All Host Named Site Collection ..."
-	# Variable Declaration
-	$hsncURL = New-Object System.Collections.ArrayList
+	[CmdletBinding()]
+    [OutputType([System.Collections.ArrayList])]
 
+	$hsncURL = New-Object System.Collections.ArrayList
 	$webApps = Get-SPWebApplication
+
 	$sites = $webApps | ForEach-Object -Process {
         $_.sites
     }
@@ -775,11 +664,10 @@ function Get-SPSHSNCUrl
 # ===================================================================================
 function Get-SPSWebAppUrl
 {
-	Add-LogContent "White" "--------------------------------------------------------------"
-	Add-LogContent "White" " - Get URLs of All Web Applications ..."
-	$webAppURL = New-Object System.Collections.ArrayList
-	
-	#$WebSrv = [microsoft.sharepoint.administration.spwebservice]::ContentService
+	[CmdletBinding()]
+    [OutputType([System.Collections.ArrayList])]
+
+	$webAppURL = New-Object -TypeName System.Collections.ArrayList
 	$webApps = Get-SPWebApplication
 
 	foreach ($webapp in $webApps)
@@ -816,8 +704,7 @@ function Get-SPSWebRequest
 	$WebRequestObject.Accept = "text/html"
 	$WebRequestObject.Timeout = 80000
 
-	Add-LogContent "White" " - Web Request for url: $url"
-	$mailLogContent += " - Web Request for url: $url"
+	Write-LogContent -Message "Web Request for url: $url"
 	try
 	{
 		# Get the response of $WebRequestObject
@@ -825,12 +712,10 @@ function Get-SPSWebRequest
 		$TimeStop = Get-Date
 		$TimeExec = ($TimeStop - $TimeStart).TotalSeconds
 		'{0,-30} : {1,10:#,##0.00} s' -f '   WebSite successfully loaded in', $TimeExec
-		#Add-LogContent "Green" "   * WebSite successfully loaded in $TimeExec s"
-		$mailLogContent += "<br><font color=green>WebSite successfully loaded in $TimeExec s</font><br>"
 	}
 	catch [Net.WebException]
 	{
-		Write-LogException $_
+		Write-LogException -Message $_
 	}
 	finally 
 	{
@@ -976,8 +861,8 @@ function Invoke-SPSWebRequest
 	}
 	catch
 	{
-		Add-LogContent "Yellow" "An error occurred invoking multi-threading function"
-		Write-LogException $_
+		Write-LogContent -Message "Yellow" "An error occurred invoking multi-threading function"
+		Write-LogException -Message $_
 	}
 	
 	Finally
@@ -1004,8 +889,7 @@ function Get-IEWebRequest
 	
 	foreach ($url in $urls)
 	{
-		Add-LogContent "White" " - Internet Explorer - Browsing $url"
-		$mailLogContent += "- Browsing $url"
+		Write-LogContent -Message "Internet Explorer - Browsing $url"
 		$TimeOut = 90
 		$Wait = 0
 		try
@@ -1016,13 +900,12 @@ function Get-IEWebRequest
 				Start-Sleep -s 1
 				$Wait++
 			}
-			Add-LogContent "Green" "   * WebSite successfully loaded in $Wait s"
-			$mailLogContent += "<br><font color=green>WebSite successfully loaded in $Wait s</font><br>"
+			Write-LogContent -Message "Green" "   * WebSite successfully loaded in $Wait s"
 		}
 		catch
 		{
 			$pid = $ieProc.id
-			Add-LogContent "Red" "  IE not responding.  Closing process ID $pid"
+			Write-LogContent -Message "Red" "  IE not responding.  Closing process ID $pid"
 			$ieApp.Quit()
 			$ieProc | Stop-Process -Force
 			$ieApp = New-Object -com "InternetExplorer.Application"
@@ -1034,8 +917,8 @@ function Get-IEWebRequest
 	# Quit Internet Explorer
 	if ($ieApp)
 	{
-		Add-LogContent "White" "--------------------------------------------------------------"
-		Add-LogContent "White" " - Closing Internet Explorer ..."
+		Write-LogContent -Message '--------------------------------------------------------------'
+		Write-LogContent -Message "Closing Internet Explorer ..."
 		$ieApp.Quit()
 	}
 }
@@ -1110,11 +993,8 @@ function Invoke-IEWebRequest
 
 	}
 
-	Write-Host " - Please Wait.." -NoNewline
-
 	While ($Jobs.Result.IsCompleted -contains $false)
 	{
-	   Write-Host "." -NoNewline
 	   Start-Sleep -s 1
 	} 
 
@@ -1150,12 +1030,12 @@ function Disable-LoopbackCheck
 		$lsaPathValue = Get-ItemProperty -path $lsaPath
 		if (-not ($lsaPathValue.DisableLoopbackCheck -eq "1"))
 		{
-			Add-LogContent "White" " - Disabling Loopback Check..."
+			Write-LogContent -Message "Disabling Loopback Check..."
 			New-ItemProperty HKLM:\System\CurrentControlSet\Control\Lsa -Name "DisableLoopbackCheck" -value "1" -PropertyType dword -Force | Out-Null
 		}
 		else
 		{
-			Add-LogContent "White" " - Loopback Check already Disabled - skipping."
+			Write-LogContent -Message "Loopback Check already Disabled - skipping."
 		}
 	}
 	ElseIf($xmlinput.Configuration.Settings.DisableLoopbackCheck -eq "secure")
@@ -1168,13 +1048,13 @@ function Disable-LoopbackCheck
 
 		if ($lsaPathValue.DisableLoopbackCheck -eq "1")
 		{
-			Add-LogContent "White" " - Disabling Loopback Check - Back to default value ..."
+			Write-LogContent -Message "Disabling Loopback Check - Back to default value ..."
 			New-ItemProperty $lsaPath -Name "DisableLoopbackCheck" -value "0" -PropertyType dword -Force | Out-Null
 		}
 
 		if (-not($paramPathValue.DisableStrictNameChecking -eq "1"))
 		{
-			Add-LogContent "White" " - Disabling Strict Name Checking ..."
+			Write-LogContent -Message "Disabling Strict Name Checking ..."
 			New-ItemProperty $paramPath -Name "DisableStrictNameChecking" -value "1" -PropertyType dword -Force | Out-Null
 		}
 
@@ -1187,7 +1067,7 @@ function Disable-LoopbackCheck
 		{	
 			if (!($BackCoName.BackConnectionHostNames -like "*$hostName*"))
 			{
-				Add-LogContent "White" " - Add $hostName in BackConnectionHostNames regedit key ..."
+				Write-LogContent -Message "Add $hostName in BackConnectionHostNames regedit key ..."
 				$BackCoNameNew = $BackCoName.BackConnectionHostNames + "$hostName"
 				New-ItemProperty $mvaPath -Name "BackConnectionHostNames" -Value $BackCoNameNew -PropertyType multistring -Force | Out-Null
 			}
@@ -1208,8 +1088,8 @@ function Backup-HostsFile
 	
 	if ($xmlinput.Configuration.Settings.AddURLsToHOSTS.Enable -eq "true")
 	{
-		Add-LogContent "White" "   * Backing up $hostsFilePath file to:"
-		Add-LogContent "White" "   * $hostsBackupPath"
+		Write-LogContent -Message "Backing up $hostsFilePath file to:"
+		Write-LogContent -Message "$hostsBackupPath"
 		Copy-Item $hostsFilePath -Destination $hostsBackupPath -Force
 	}
 }
@@ -1226,8 +1106,8 @@ function Restore-HostsFile
 	)
 	if ($xmlinput.Configuration.Settings.AddURLsToHOSTS.Enable -eq "true" -AND $xmlinput.Configuration.Settings.AddURLsToHOSTS.KeepOriginal -eq "true")
 	{
-		Add-LogContent "White" "   * Restoring $hostsBackupPath file to:"
-		Add-LogContent "White" "   * $hostsFilePath"
+		Write-LogContent -Message "Restoring $hostsBackupPath file to:"
+		Write-LogContent -Message "$hostsFilePath"
 		Copy-Item $hostsBackupPath -Destination $hostsFilePath -Force
 	}
 }
@@ -1255,19 +1135,19 @@ function Clear-HostsFileCopy
 		
 		if ($copyFiles)
 		{
-			Add-LogContent "White" "--------------------------------------------------------------"
-			Add-LogContent "White" " - Cleaning backup HOSTS files in $hostsFolderPath ..."
+			Write-LogContent -Message '--------------------------------------------------------------'
+			Write-LogContent -Message "Cleaning backup HOSTS files in $hostsFolderPath ..."
 			foreach ($copyFile in $copyFiles) 
 			{
 				if ($null -ne $copyFile)
 				{
-					Add-LogContent "Yellow" "   * Deleting File $copyFile ..."
+					Write-LogContent -Message "Yellow" "   * Deleting File $copyFile ..."
 					Remove-Item $copyFile.FullName | out-null
 				}
 				Else
 				{
-					Add-LogContent "White" " - No more backup HOSTS files to delete "
-					Add-LogContent "White" "--------------------------------------------------------------"
+					Write-LogContent -Message "No more backup HOSTS files to delete "
+					Write-LogContent -Message '--------------------------------------------------------------'
 				}
 			}
 		}
@@ -1289,12 +1169,12 @@ function Add-HostsEntry
 		$hostsContentFile =  New-Object System.Collections.Generic.List[string]
 		# Check if the IPv4Address configured in XML Input file is reachable
 		$hostIPV4Addr = $xmlinput.Configuration.Settings.AddURLsToHOSTS.IPv4Address
-		Add-LogContent "White" "   * Testing connection (via Ping) to `"$hostIPV4Addr`"..."
+		Write-LogContent -Message "Testing connection (via Ping) to `"$hostIPV4Addr`"..."
 		$canConnect = Test-Connection $hostIPV4Addr -Count 1 -Quiet
-		if ($canConnect) {Add-LogContent "White" "   * IPv4Address $hostIPV4Addr will be used in HOSTS File during WarmUP ..."}
+		if ($canConnect) {Write-LogContent -Message "IPv4Address $hostIPV4Addr will be used in HOSTS File during WarmUP ..."}
 		if (!$canConnect)
 		{
-			Add-LogContent "Yellow" "   * IPv4Address not valid in Input XML File, 127.0.0.1 will be used in HOSTS File"
+			Write-LogContent -Message "Yellow" "   * IPv4Address not valid in Input XML File, 127.0.0.1 will be used in HOSTS File"
 			$hostIPV4Addr = "127.0.0.1"
 		}
 		
@@ -1324,7 +1204,7 @@ function Add-HostsEntry
 			# Remove http or https information to keep only HostName or FQDN		
 			if ($hostname.Contains(":"))
 			{
-				Add-LogContent "White" "   * $hostname cannot be added in HOSTS File, only web applications with 80 or 443 port are added."
+				Write-LogContent -Message "$hostname cannot be added in HOSTS File, only web applications with 80 or 443 port are added."
 			}
 			Else
 			{
@@ -1343,19 +1223,19 @@ function Add-SPSUserPolicy
 {
 	param
 	(	
-		[Parameter(Mandatory=$true)]$urls
-		
+		[Parameter(Mandatory=$true)]
+		[ValidateNotNullOrEmpty()]
+		$urls		
 	)
+	
 	$userName = $xmlinput.Configuration.Install.ServiceAccount.Username
-	Add-LogContent "White" "--------------------------------------------------------------"
-	Add-LogContent "White" " - Add Read Access to $user for All Web Applications ..."
+	Write-LogContent -Message '--------------------------------------------------------------'
+	Write-LogContent -Message "Add Read Access to $userName for All Web Applications ..."
 	foreach ($url in $urls)
 	{
 		try
 		{
-			$webapp = [Microsoft.SharePoint.Administration.SPWebApplication]::Lookup("$url")
-			#$user = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
-			
+			$webapp = [Microsoft.SharePoint.Administration.SPWebApplication]::Lookup("$url")		
 			$displayName = 'WarmUp Account'
 			
 			# If the web app is not Central Administration 
@@ -1364,24 +1244,19 @@ function Add-SPSUserPolicy
 				# If the web app is using Claims auth, change the user accounts to the proper syntax
 				if ($webapp.UseClaimsAuthentication -eq $true)
 				{
-					#$user = 'i:0#.w|'+$userName
 					$user = (New-SPClaimsPrincipal -identity $userName -identitytype 1).ToEncodedString()  
 				}
 				else
 				{
 					$user = $userName
 				}
-				Add-LogContent "White" " - Applying Read access for $user account to $url..."
+				Write-LogContent -Message "Applying Read access for $user account to $url..."
 				[Microsoft.SharePoint.Administration.SPPolicyCollection]$policies = $webapp.Policies
 				$policyExist = $policies | Where-Object -FilterScript {
 					$_.Displayname -eq 'WarmUp Account'
 				}
 				
-				if ($policyExist)
-				{
-					Add-LogContent "Yellow" "   * Read access for WarmUp Account already exists - skipping."
-				}
-				else
+				if (-not ($policyExist))
 				{
 					[Microsoft.SharePoint.Administration.SPPolicy]$policy = $policies.Add($user, $displayName)
 					$policyRole = $webApp.PolicyRoles.GetSpecialRole([Microsoft.SharePoint.Administration.SPPolicyRoleType]::FullRead)
@@ -1390,14 +1265,13 @@ function Add-SPSUserPolicy
 						$policy.PolicyRoleBindings.Add($policyRole)
 					}
 					$webapp.Update()
-					Add-LogContent "White" "   * Done Applying Read access for `"$user`" account to `"$url`""
+					Write-LogContent -Message "Done Applying Read access for `"$user`" account to `"$url`""
 				}
 			}
 		}
 		catch
 		{
-			Add-LogContent "Yellow" "An error occurred applying Read access for `"$user`" account to `"$url`""
-			Write-LogException $_
+			Write-LogException -Message $_
 		}
 	}
 }
@@ -1415,8 +1289,8 @@ function Add-IETrustedSite
 		[Parameter(Mandatory=$true)]$urls
 	)
 
-	Add-LogContent "White" "--------------------------------------------------------------"
-	Add-LogContent "White" " - Add URLs of All Web Applications in Internet Settings/Security ..."
+	Write-LogContent -Message '--------------------------------------------------------------'
+	Write-LogContent -Message "Add URLs of All Web Applications in Internet Settings/Security ..."
 	foreach ($url in $urls)
 	{
 		# Remove http or https information to keep only HostName or FQDN
@@ -1426,24 +1300,24 @@ function Add-IETrustedSite
 
 		if (-not (Test-Path -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$urlDomain"))
 		{
-			Add-LogContent "White" " - Adding *.$urlDomain to local Intranet security zone..."
+			Write-LogContent -Message "Adding *.$urlDomain to local Intranet security zone..."
 			New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains" -Name $urlDomain -ItemType Leaf -Force | Out-Null
 			New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$urlDomain" -Name '*' -value "1" -PropertyType dword -Force | Out-Null
 		}
 		else
 		{
-			Add-LogContent "White" " - $urlDomain already added to local Intranet security zone - skipping."
+			Write-LogContent -Message "$urlDomain already added to local Intranet security zone - skipping."
 		}
 
 		if (-not (Test-Path -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\$urlDomain"))
 		{
-			Add-LogContent "White" " - Adding *.$urlDomain to local Intranet security zone (IE ESC) ..."
+			Write-LogContent -Message "Adding *.$urlDomain to local Intranet security zone (IE ESC) ..."
 			New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains" -Name $urlDomain -ItemType Leaf -Force | Out-Null
 			New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\$urlDomain" -Name '*' -value "1" -PropertyType dword -Force | Out-Null
 		}
 		else
 		{
-			Add-LogContent "White" " - $urlDomain already added to local Intranet security zone (IE ESC) - skipping."
+			Write-LogContent -Message "$urlDomain already added to local Intranet security zone (IE ESC) - skipping."
 		}
 	}
 }
@@ -1458,7 +1332,7 @@ function Clear-IECache
 	{
 		try
 		{
-			Add-LogContent "White" " - Cleaning Cache IE with runDll32.exe ..."
+			Write-LogContent -Message "Cleaning Cache IE with runDll32.exe ..."
 			Start-Process -FilePath $RunDll32 -ArgumentList "InetCpl.cpl,ClearMyTracksByProcess 8" -NoNewWindow -Wait -ErrorAction Stop
 		}
 		catch
@@ -1468,7 +1342,7 @@ function Clear-IECache
 	}
 	else
 	{
-		Add-LogContent "White" " - Clear Cache IE - The rundll32 is not present in $env:windir\System32 folder"
+		Write-LogContent -Message "Clear Cache IE - The rundll32 is not present in $env:windir\System32 folder"
 	}
 }
 # ===================================================================================
@@ -1479,24 +1353,24 @@ function Disable-IEESC
 {
 	if ($xmlinput.Configuration.Settings.DisableIEESC -eq $true)
 	{
-		Add-LogContent "White" "--------------------------------------------------------------"
+		Write-LogContent -Message '--------------------------------------------------------------'
 		try
 		{			
-			$AdminKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
+			$AdminKey = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}'
 			$AdminKeyValue = Get-ItemProperty -Path $AdminKey
 			if (-not ($AdminKeyValue.IsInstalled -eq "0"))
 			{
-				Add-LogContent "White" " - Disabling Internet Explorer Enhanced Security Configuration ..."
+				Write-LogContent -Message 'Disabling Internet Explorer Enhanced Security Configuration ...'
 				Set-ItemProperty -Path $AdminKey -Name "IsInstalled" -Value 0
 			}
 			else
 			{
-				Add-LogContent "White" " - Internet Explorer ESC already Disabled - skipping."
+				Write-LogContent -Message 'Internet Explorer ESC already Disabled - skipping.'
 			}
 		}
 		catch 
 		{
-			Add-LogContent "Yellow" "Failed to Disable Internet Explorer Enhanced Security Configuration"
+			Write-LogContent -Message 'Failed to Disable Internet Explorer Enhanced Security Configuration'
 		}
 	}
 }
@@ -1507,17 +1381,18 @@ function Disable-IEESC
 # ===================================================================================
 function Disable-IEFirstRun
 {
-	Add-LogContent "White" "--------------------------------------------------------------"
-	$lsaPath = "HKCU:\Software\Microsoft\Internet Explorer\Main"
+	Write-LogContent -Message '--------------------------------------------------------------'
+	$lsaPath = 'HKCU:\Software\Microsoft\Internet Explorer\Main'
 	$lsaPathValue = Get-ItemProperty -path $lsaPath
+
 	if (-not ($lsaPathValue.DisableFirstRunCustomize -eq "1"))
 	{
-		Add-LogContent "White" " - Disabling Internet Explorer First Run ..."
-		New-ItemProperty "HKCU:\Software\Microsoft\Internet Explorer\Main" -Name "DisableFirstRunCustomize" -value "1" -PropertyType dword -Force | Out-Null
+		Write-LogContent -Message 'Disabling Internet Explorer First Run ...'
+		New-ItemProperty -Path $lsaPath -Name DisableFirstRunCustomize -value "1" -PropertyType dword -Force | Out-Null
 	}
 	else
 	{
-		Add-LogContent "White" " - Internet Explorer First Run already Disabled - skipping."
+		Write-LogContent -Message 'Internet Explorer First Run already Disabled - skipping.'
 	}
 }
 #endregion
@@ -1537,25 +1412,23 @@ if ($PSVersionTable.PSVersion -gt [Version]"2.0" -and $spsVersion -lt 15)
   exit
 }
 
-Add-LogContent "Green" "-------------------------------------"
-Add-LogContent "Green" "| Automated Script - SPSWakeUp v$spsWakeupVersion |"
-Add-LogContent "Green" "| Started on : $DateStarted by $currentuser|"
-Add-LogContent "Green" "| PowerShell Version: $psVersion |"
-Add-LogContent "Green" "| SharePoint Version: $spsVersion |"
-Add-LogContent "Green" "-------------------------------------"
-$mailLogContent = "Automated Script - WarmUp Urls - Started on: $DateStarted <br>"
-$mailLogContent += "SharePoint Server : $env:COMPUTERNAME<br>"
+Write-LogContent -Message '-------------------------------------'
+Write-LogContent -Message "| Automated Script - SPSWakeUp v$spsWakeupVersion |"
+Write-LogContent -Message "| Started on : $DateStarted by $currentUser|"
+Write-LogContent -Message "| PowerShell Version: $psVersion |"
+Write-LogContent -Message "| SharePoint Version: $spsVersion |"
+Write-LogContent -Message '-------------------------------------'
 
 # Check Permission Level
 if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))
 {
-	Write-Warning "You do not have Administrator rights to run this script!`nPlease re-run this script as an Administrator!"
+	Write-Warning -Message 'You do not have Administrator rights to run this script!`nPlease re-run this script as an Administrator!'
 	Break
 } 
 else 
 {
 	# Add SPSWakeup script in a new scheduled Task
-	Add-SPSTask -Path $logfolder
+	Add-SPSTask -Path $scriptRootPath
 
 	# Load SharePoint Powershell Snapin, Assembly and System.Web
 	Add-RASharePoint
@@ -1566,8 +1439,16 @@ else
 	[int]$NumThrottle = Get-SPSThrottleLimit
 
 	# Get All Web Applications Urls, Host Named Site Collection and Site Collections
+	Write-LogContent -Message '--------------------------------------------------------------'
+	Write-LogContent -Message 'Get URLs of All Web Applications ...'
 	$getSPWebApps = Get-SPSWebAppUrl
+	
+	Write-LogContent -Message '--------------------------------------------------------------'
+	Write-LogContent -Message 'Get URLs of All Host Named Site Collection ...'
 	$getSPSiteColN = Get-SPSHSNCUrl
+	
+	Write-LogContent -Message '--------------------------------------------------------------'
+	Write-LogContent -Message 'Get URLs of All Site Collection ...'
 	$getSPSites = Get-SPSSitesUrl
 
 	if ($null -ne $getSPWebApps -and $null -ne $getSPSites)
@@ -1575,13 +1456,13 @@ else
 		if ($hostEntries)
         {
             # Disable LoopBack Check
-		    Add-LogContent "White" "--------------------------------------------------------------"
-		    Add-LogContent "White" " - Add Urls of All Web Applications or HSNC in BackConnectionHostNames regedit key ..."
+		    Write-LogContent -Message '--------------------------------------------------------------'
+		    Write-LogContent -Message 'Add Urls of All Web Applications or HSNC in BackConnectionHostNames regedit key ...'
 		    Disable-LoopbackCheck -hostNameList $hostEntries
 
 	        # Make backup copy of the Hosts file with today's date Add Web Application and Host Named Site Collection Urls in HOSTS system File
-	        Add-LogContent "White" "--------------------------------------------------------------"
-	        Add-LogContent "White" " - Add Urls of All Web Applications or HSNC in HOSTS File ..."
+	        Write-LogContent -Message '--------------------------------------------------------------'
+	        Write-LogContent -Message 'Add Urls of All Web Applications or HSNC in HOSTS File ...'
 	        Backup-HostsFile -hostsFilePath $hostsFile -hostsBackupPath $hostsFileCopy
             Add-HostsEntry -hostNameList $hostEntries
 		}
@@ -1606,52 +1487,39 @@ else
 			Clear-IECache
 			
 			# Request Url with Internet Explorer for All Site Collections Urls
-			Add-LogContent "White" "--------------------------------------------------------------"
-			Add-LogContent "White" " - Opening All sites Urls with Internet Explorer ..."
-			$mailLogContent += "<br>Opening All sites Urls with Internet Explorer ... <br>"
+			Write-LogContent -Message '--------------------------------------------------------------'
+			Write-LogContent -Message 'Opening All sites Urls with Internet Explorer, Please Wait...'
 			$InvokeResults = Invoke-IEWebRequest -Urls $getSPSites -throttleLimit $NumThrottle
 		}
 		else
 		{
 			# Request Url with System.Net.WebClient Object for All Site Collections Urls
-			Add-LogContent "White" "--------------------------------------------------------------"
-			Add-LogContent "White" " - UseIEforWarmUp is set to False - Opening All sites Urls with Web Request ..."
-			$mailLogContent += "<br>Opening All sites Urls with Web Request Object, see log files for more details<br>"
+			Write-LogContent -Message '--------------------------------------------------------------'
+			Write-LogContent -Message 'Opening All sites Urls with Web Request Object, Please Wait...'
 			$InvokeResults = Invoke-SPSWebRequest -Urls $getSPSites -throttleLimit $NumThrottle
 		}
 		# Show the results
-        Add-LogContent "White" "WarmUP Results:"
 		foreach ($InvokeResult in $InvokeResults)
 		{
 			$resultUrl = $InvokeResult.Url
 			$resultTime = $InvokeResult.'Time(s)'
 			$resultStatus = $InvokeResult.Status
-			Add-LogContent "White" " -----------------------------------"
-			Add-LogContent "White" " | Url    : $resultUrl"
-			Add-LogContent "White" " | Time   : $resultTime seconds"
-            if ($resultStatus -match "200")
-            {
-                Add-LogContent "White" " | Status : " -noNewLine
-                Add-LogContent "Green" "$resultStatus"
-            }
-			else
-            {
-                Add-LogContent "White" " | Status : $resultStatus"
-            }
+			Write-LogContent -Message '-----------------------------------'
+			Write-LogContent -Message "| Url    : $resultUrl"
+			Write-LogContent -Message "| Time   : $resultTime seconds"
+  			Write-LogContent -Message "| Status : $resultStatus"
 		}
 	}
 	
 	# Clean the folder of log files 
-	Clear-SPSLog -path $logfolder
+	Clear-SPSLog -path $scriptRootPath
 	
 	$DateEnded = Get-date
-	Add-LogContent "Green" "-----------------------------------"
-	Add-LogContent "Green" "| Automated Script - SPSWakeUp |"
-	Add-LogContent "Green" "| Started on : $DateStarted |"
-	Add-LogContent "Green" "| Completed on : $DateEnded |"
-	Add-LogContent "Green" "-----------------------------------"
-	$mailLogContent += "<br>"
-	$mailLogContent += "Automated Script - WarmUp Urls - Completed on: $DateEnded"
+	Write-LogContent -Message '-------------------------------------'
+	Write-LogContent -Message "| Automated Script - SPSWakeUp |"
+	Write-LogContent -Message "| Started on : $DateStarted |"
+	Write-LogContent -Message "| Completed on : $DateEnded |"
+	Write-LogContent -Message '-------------------------------------'
 
 	Trap {Continue}
 	
@@ -1661,10 +1529,12 @@ else
 	# Clean the copy files of system HOSTS folder
 	Clear-HostsFileCopy -hostsFilePath $hostsFile
 	
-	Save-LogFile $logFile
+	Save-LogFile $pathLogFile
 	
 	# Send Email with log file in attachment - For settings see XML input file
-	Send-SPSLog -MailAttachment $logFile -MailBody $mailLogContent
+	$mailLogContent = "Automated Script - WarmUp Urls - Started on: $DateStarted <br>"
+	$mailLogContent += "SharePoint Server : $env:COMPUTERNAME<br>"
+	Send-SPSLog -MailAttachment $pathLogFile -MailBody $mailLogContent
 	
 	Exit
 }
