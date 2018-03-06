@@ -16,6 +16,9 @@
   * Function Names Must Use Approved Verbs
   * Using Named Parameters Instead of Positional Parameters
   * Rename logfolder by scriptRootPath
+* Add SPSWakeUp.psd1 file to replace xml file in next release
+* Update ps1 for the input file psd1
+* Add UserName and Password parameter for installation process
 
 ### 2.1.4
 

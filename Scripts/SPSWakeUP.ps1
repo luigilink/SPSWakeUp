@@ -23,10 +23,10 @@
     SPSWakeUP.ps1 -Install
     
     .NOTES  
-    FileName:	SPSWarmUP.ps1
+    FileName:	SPSWakeUP.ps1
     Author:		luigilink (Jean-Cyril DROUHIN)
-    Date:		April 18, 2017
-    Version:	2.1.5
+    Date:		April 18, 2018
+    Version:	2.2.0
     Licence:	MIT License
     
     .LINK
@@ -35,23 +35,31 @@
 param 
 (
     [Parameter()]
-    [string]
+    [System.String]
     $InputFile,
     
     [Parameter()]
     [switch]
-    $Install
+    $Install,
+
+    [Parameter()]
+    [System.String]
+    $UserName,
+
+    [Parameter()]
+    [System.String]
+    $Password
 )
 
 Clear-Host
 $Host.UI.RawUI.WindowTitle = "WarmUP script running on $env:COMPUTERNAME"
 
 # Define variable
-$spsWakeupVersion = '2.1.5'
+$spsWakeupVersion = '2.2.0'
 $currentUser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
 $scriptRootPath = Split-Path -parent $MyInvocation.MyCommand.Definition
 
-$pathLogFile = Join-Path -Path $scriptRootPath -ChildPath ('WarmUP_script_' + (Get-Date -Format yyyy-MM-dd_H-mm) + '.log')
+$pathLogFile = Join-Path -Path $scriptRootPath -ChildPath ('SPSWakeUP_script_' + (Get-Date -Format yyyy-MM-dd_H-mm) + '.log')
 $logFileContent =  New-Object -TypeName System.Collections.Generic.List[string]
 
 $hostEntries =  New-Object -TypeName System.Collections.Generic.List[string]
@@ -59,13 +67,36 @@ $hostsFile = "$env:windir\System32\drivers\etc\HOSTS"
 $hostsFileCopy = $hostsFile + '.' + (Get-Date -UFormat "%y%m%d%H%M%S").ToString() + '.copy'
 
 # Get the content of the SPSWakeUP.xml file
-if (!$InputFile)
+if (-not($InputFile))
 {
-    $InputFile = Join-Path -Path $scriptRootPath -ChildPath 'SPSWakeUP.xml'
+    $InputFile = Join-Path -Path $scriptRootPath -ChildPath 'SPSWakeUP.psd1'
 }
 if (Test-Path -Path $InputFile)
 {
-    [xml]$xmlinput = (Get-Content -Path $InputFile -ReadCount 0)
+    #[xml]$xmlinput = (Get-Content -Path $InputFile -ReadCount 0)
+    $xmlinput = Import-LocalizedData -BaseDirectory $scriptRootPath -FileName 'SPSWakeUP.psd1'
+}
+
+#Check UserName and Password if Install parameter is used
+if ($Install)
+{
+    if (-not($UserName) -or -not($Password))
+    {
+        Write-Warning -Message ("SPSWakeUp: Install parameter is set. Please set also UserName and " + `
+                                "Password parameter. `nSee https://spwakeup.com for details.")
+        Break
+    }
+    else
+    {
+    	$currentDomain = "LDAP://" + ([ADSI]"").distinguishedName
+		Write-Output "Checking Account `"$UserName`" ..."
+		$dom = New-Object System.DirectoryServices.DirectoryEntry($currentDomain,$UserName,$Password)
+		if ($dom.Path -eq $null)
+		{
+			Write-Warning -Message "Password Invalid for user:`"$UserName`""
+            Break
+		}
+    }
 }
 
 # ====================================================================================
@@ -179,10 +210,10 @@ function Send-SPSLog
         $MailBody
     )
     
-    if ($xmlinput.Configuration.EmailNotification.Enable -eq $true)
+    if ($xmlinput.Settings.EmailNotification.Enable)
     {
-        $mailAddress = $xmlinput.Configuration.EmailNotification.EmailAddress
-        $smtpServer = $xmlinput.Configuration.EmailNotification.SMTPServer
+        $mailAddress = $xmlinput.Settings.EmailNotification.EmailAddress
+        $smtpServer = $xmlinput.Settings.EmailNotification.SMTPServer
         $mailSubject = "Automated Script - WarmUp Urls - $env:COMPUTERNAME"
 
         Write-LogContent -Message '--------------------------------------------------------------'
@@ -209,53 +240,44 @@ function Clear-SPSLog
         [Parameter(Mandatory=$true)]
         [string]$path
     )
-    
-    if ($xmlinput.Configuration.Settings.CleanLogs.Enable -eq $true)
+
+    if (Test-Path $path)
     {
-        if (Test-Path $path)
+        # Days of logs that will be remaining after log cleanup. 
+        $days = $xmlinput.Settings.CleanLogsDays
+        
+        # Get the current date
+        $Now = Get-Date
+        
+        # Definie the extension of log files
+        $Extension = "*.log"
+        
+        # Define LastWriteTime parameter based on $days
+        $LastWrite = $Now.AddDays(-$days)
+        
+        # Get files based on lastwrite filter and specified folder
+        $files = Get-Childitem -Path "$path\*.*" -Include $Extension | Where-Object -FilterScript {
+            $_.LastWriteTime -le "$LastWrite"
+        }
+        
+        if ($files)
         {
-            # Days of logs that will be remaining after log cleanup. 
-            $days = $xmlinput.Configuration.Settings.CleanLogs.Days
-            
-            # Get the current date
-            $Now = Get-Date
-            
-            # Definie the extension of log files
-            $Extension = "*.log"
-            
-            # Define LastWriteTime parameter based on $days
-            $LastWrite = $Now.AddDays(-$days)
-            
-            # Get files based on lastwrite filter and specified folder
-            $files = Get-Childitem -Path "$path\*.*" -Include $Extension | Where-Object -FilterScript {
-                $_.LastWriteTime -le "$LastWrite"
-            }
-            
-            if ($files)
+            Write-LogContent -Message '--------------------------------------------------------------'
+            Write-LogContent -Message "Cleaning log files in $path ..."
+            foreach ($file in $files) 
             {
-                Write-LogContent -Message '--------------------------------------------------------------'
-                Write-LogContent -Message "Cleaning log files in $path ..."
-                foreach ($file in $files) 
+                if ($null -ne $file)
                 {
-                    if ($null -ne $file)
-                    {
-                        Write-LogContent -Message "Deleting file $file ..."
-                        Remove-Item $file.FullName | out-null
-                    }
-                    else
-                    {
-                        Write-LogContent -Message 'No more log files to delete'
-                        Write-LogContent -Message '--------------------------------------------------------------'
-                    }
+                    Write-LogContent -Message "Deleting file $file ..."
+                    Remove-Item $file.FullName | out-null
+                }
+                else
+                {
+                    Write-LogContent -Message 'No more log files to delete'
+                    Write-LogContent -Message '--------------------------------------------------------------'
                 }
             }
         }
-    }
-    else
-    {
-        Write-LogContent -Message '--------------------------------------------------------------' 
-        Write-LogContent -Message 'Clean of logs is disabled in XML input file.'
-        Write-LogContent -Message '--------------------------------------------------------------'	
     }
 }
 #endregion
@@ -274,7 +296,7 @@ function Add-SPSTask
         $Path
     )
 
-    if (($xmlinput.Configuration.Install.Enable -eq "true") -OR ($Install))
+    if ($Install)
     {        
         $TrigSubscription =
 @"
@@ -309,8 +331,8 @@ function Add-SPSTask
 
             # Get Credentials for Task Schedule
             $TaskAuthor = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
-            $TaskUser =  $xmlinput.Configuration.Install.ServiceAccount.UserName
-            $TaskUserPwd = $xmlinput.Configuration.Install.ServiceAccount.Password
+            $TaskUser =  $UserName
+            $TaskUserPwd = $Password
 
             # Add a New Task Schedule
             $TaskSchd = $TaskSvc.NewTask(0)
@@ -332,11 +354,8 @@ function Add-SPSTask
             $TaskTrigger1 = $TaskTriggers.Create(2)
             $TaskTrigger1.StartBoundary = $TaskDate + "T06:00:00"
             $TaskTrigger1.DaysInterval = 1
-            if ($xmlinput.Configuration.Install.Repetition.Enable -eq $true)
-            {
-                $TaskTrigger1.Repetition.Duration = $xmlinput.Configuration.Install.Repetition.Duration
-                $TaskTrigger1.Repetition.Interval = $xmlinput.Configuration.Install.Repetition.Interval
-            }
+            $TaskTrigger1.Repetition.Duration = 'PT12H'
+            $TaskTrigger1.Repetition.Interval = 'PT1H'
             $TaskTrigger1.Enabled = $true
 
             # Add Trigger Type 8 At StartUp Delay 10M
@@ -399,7 +418,7 @@ function Add-RASharePoint
 # ===================================================================================
 function Add-SystemWeb
 {
-    if ($xmlinput.Configuration.Settings.UseIEforWarmUp -eq $false)
+    if ($xmlinput.Settings.UseIEforWarmUp -eq $false)
     {
         Write-LogContent -Message '--------------------------------------------------------------'
         Write-LogContent -Message 'Loading System.Web ...'
@@ -412,37 +431,29 @@ function Add-SystemWeb
 # Description:	Get Number Of Throttle Limit
 # ===================================================================================
 function Get-SPSThrottleLimit
-{
-    Begin
+{    
+    Write-LogContent -Message '--------------------------------------------------------------'
+    Write-LogContent -Message 'Get Number Of Throttle Limit (from NumberOfLogicalProcessors)'
+    [int]$NumThrottle = 8 
+
+    # Get Number Of Throttle Limit
+    $cimInstanceProc = Get-CimInstance -ClassName Win32_Processor
+    $numLogicalCpu = (Measure-Object -InputObject $cimInstanceProc -Property NumberOfLogicalProcessors -Sum).Sum
+    if ($numLogicalCpu -le 2)
     {
-        Write-LogContent -Message '--------------------------------------------------------------'
-        Write-LogContent -Message 'Get Number Of Throttle Limit (from NumberOfLogicalProcessors)'
-        [int]$NumThrottle = 8 
+        $NumThrottle = 2*$numLogicalCpu
     }
+    elseif ($numLogicalCpu -ge 8)
+    {
+        $NumThrottle = 10
+    }
+    else 
+    {
+        $NumThrottle = 2*$numLogicalCpu
+    }
+    Write-LogContent -Message "Number Of Throttle Limit will be $NumThrottle"
     
-    Process
-    {
-        # Get Number Of Throttle Limit
-        $cimInstanceProc = Get-CimInstance -ClassName Win32_Processor
-        $numLogicalCpu = (Measure-Object -InputObject $cimInstanceProc -Property NumberOfLogicalProcessors -Sum).Sum
-        if ($numLogicalCpu -le 2)
-        {
-            $NumThrottle = 2*$numLogicalCpu
-        }
-        elseif ($numLogicalCpu -ge 8)
-        {
-            $NumThrottle = 10
-        }
-        else 
-        {
-            $NumThrottle = 2*$numLogicalCpu
-        }
-        Write-LogContent -Message "Number Of Throttle Limit will be $NumThrottle"
-    }
-    End
-    {	
-        $NumThrottle
-    }
+    return $NumThrottle
 }
 #endregion
 
@@ -514,33 +525,6 @@ function Add-SPSHostEntry
     [void]$hostEntries.Add($hostNameEntry)
 }
 # ===================================================================================
-# Name: 		Get-SPWebServicesUrl
-# Description:	Get All Web Services *.svc used by SharePoint
-# ===================================================================================
-function Get-SPWebServicesUrl
-{
-    if ($xmlinput.Configuration.Settings.WarmupWebSvc -eq $true)
-    {
-        # Import module WebAdministration
-        Import-Module WebAdministration
-                
-        # Add SharePoint Web Services (.svc) in warmup	
-        $iisSPWebServices = Get-ChildItem 'IIS:\Sites\SharePoint Web Services' -recurse | Where-Object -FilterScript { 
-            $_.Name -like '*svc'
-        }
-        if ($iisSPWebServices)
-        {
-            foreach ($iisSPWebService in $iisSPWebServices)
-            {
-                $iisSPWebServiceUrl = Get-WebURL $iisSPWebService.PSPath
-                        
-                [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $iisSPWebServiceUrl.ResponseUri.AbsoluteUri.ToString()))
-            }
-        }
-        Write-LogContent -Message 'SharePoint Web services included in WarmUp Urls'
-    }
-}
-# ===================================================================================
 # Name: 		Get-SPSSitesUrl
 # Description:	Get All Site Collections Url
 # ===================================================================================
@@ -560,7 +544,7 @@ function Get-SPSSitesUrl
         [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $topologySvcUrl))
         
         # Get url of CentralAdmin if include in input xml file
-        if ($xmlinput.Configuration.Settings.IncludeCentralAdmin -eq $true)
+        if ($xmlinput.Settings.IncludeCentralAdmin -eq $true)
         {
             $webAppADM = Get-SPWebApplication -IncludeCentralAdministration | Where-Object -FilterScript {
                 $_.IsAdministrationWebApplication
@@ -744,8 +728,7 @@ function Invoke-SPSWebRequest
         $throttleLimit
     )
     
-    # Get UserAgent from XML input file if no exist get UserAgent from current OS
-    $userAgent = $xmlinput.Configuration.Settings.UserAgent
+    # Get UserAgent from current OS
     if ([string]::IsNullOrEmpty($userAgent))
     {
         $userAgent = [Microsoft.PowerShell.Commands.PSUserAgent]::InternetExplorer
@@ -1023,7 +1006,7 @@ function Disable-LoopbackCheck
     
     # Disable the Loopback Check on stand alone demo servers.
     # This setting usually kicks out a 401 error when you try to navigate to sites that resolve to a loopback address e.g.  127.0.0.1
-    if ($xmlinput.Configuration.Settings.DisableLoopbackCheck -eq "true")
+    if ($xmlinput.Settings.DisableLoopbackCheck -eq $true)
     {
         
         $lsaPath = "HKLM:\System\CurrentControlSet\Control\Lsa"
@@ -1038,7 +1021,7 @@ function Disable-LoopbackCheck
             Write-LogContent -Message "Loopback Check already Disabled - skipping."
         }
     }
-    ElseIf($xmlinput.Configuration.Settings.DisableLoopbackCheck -eq "secure")
+    else
     {
         $lsaPath = "HKLM:\System\CurrentControlSet\Control\Lsa"
         $paramPath = "HKLM:System\CurrentControlSet\Services\LanmanServer\Parameters"
@@ -1086,7 +1069,7 @@ function Backup-HostsFile
         [Parameter(Mandatory=$true)]$hostsBackupPath
     )
     
-    if ($xmlinput.Configuration.Settings.AddURLsToHOSTS.Enable -eq "true")
+    if ($xmlinput.Settings.AddURLsToHOSTS.Enable -eq $true)
     {
         Write-LogContent -Message "Backing up $hostsFilePath file to:"
         Write-LogContent -Message "$hostsBackupPath"
@@ -1104,7 +1087,7 @@ function Restore-HostsFile
         [Parameter(Mandatory=$true)]$hostsFilePath,
         [Parameter(Mandatory=$true)]$hostsBackupPath
     )
-    if ($xmlinput.Configuration.Settings.AddURLsToHOSTS.Enable -eq "true" -AND $xmlinput.Configuration.Settings.AddURLsToHOSTS.KeepOriginal -eq "true")
+    if ($xmlinput.Settings.AddURLsToHOSTS.Enable -eq $true -AND $xmlinput.Settings.AddURLsToHOSTS.KeepOriginal -eq $true)
     {
         Write-LogContent -Message "Restoring $hostsBackupPath file to:"
         Write-LogContent -Message "$hostsFilePath"
@@ -1126,7 +1109,7 @@ function Clear-HostsFileCopy
     if (Test-Path $hostsFolderPath)
     {
         # Number of files that will be remaining after backup cleanup. 
-        $numberFiles = $xmlinput.Configuration.Settings.AddURLsToHOSTS.Retention	
+        $numberFiles = $xmlinput.Settings.AddURLsToHOSTS.Retention	
         # Definie the extension of log files
         $extension = "*.copy"
         
@@ -1164,11 +1147,11 @@ function Add-HostsEntry
         [Parameter(Mandatory=$true)]$hostNameList
     )
 
-    if ($xmlinput.Configuration.Settings.AddURLsToHOSTS.Enable -eq "true" -and $hostNameList)
+    if ($xmlinput.Settings.AddURLsToHOSTS.Enable -eq $true -and $hostNameList)
     {
         $hostsContentFile =  New-Object System.Collections.Generic.List[string]
         # Check if the IPv4Address configured in XML Input file is reachable
-        $hostIPV4Addr = $xmlinput.Configuration.Settings.AddURLsToHOSTS.IPv4Address
+        $hostIPV4Addr = $xmlinput.Settings.AddURLsToHOSTS.IPv4Address
         Write-LogContent -Message "Testing connection (via Ping) to `"$hostIPV4Addr`"..."
         $canConnect = Test-Connection $hostIPV4Addr -Count 1 -Quiet
         if ($canConnect) {Write-LogContent -Message "IPv4Address $hostIPV4Addr will be used in HOSTS File during WarmUP ..."}
@@ -1198,7 +1181,7 @@ function Add-HostsEntry
 #       38.25.63.10     x.acme.com              # x client host
 ")
 
-        if ($xmlinput.Configuration.Settings.AddURLsToHOSTS.ListRevocationUrl -eq "true"){$hostsContentFile.Add("127.0.0.1 `t crl.microsoft.com")}		
+        if ($xmlinput.Settings.AddURLsToHOSTS.ListRevocationUrl -eq $true){$hostsContentFile.Add("127.0.0.1 `t crl.microsoft.com")}		
         ForEach ($hostname in $hostNameList)
         {
             # Remove http or https information to keep only HostName or FQDN		
@@ -1228,9 +1211,8 @@ function Add-SPSUserPolicy
         $urls		
     )
     
-    $userName = $xmlinput.Configuration.Install.ServiceAccount.Username
     Write-LogContent -Message '--------------------------------------------------------------'
-    Write-LogContent -Message "Add Read Access to $userName for All Web Applications ..."
+    Write-LogContent -Message "Add Read Access to $UserName for All Web Applications ..."
     foreach ($url in $urls)
     {
         try
@@ -1468,7 +1450,10 @@ else
         }
 
         # Add read access for Warmup User account in User Policies settings
-        Add-SPSUserPolicy -urls $getSPWebApps
+        if ($Install)
+        {
+            Add-SPSUserPolicy -urls $getSPWebApps
+        }        
         
         if ($xmlinput.Configuration.Settings.UseIEforWarmUp -eq $true)
         {
@@ -1507,7 +1492,7 @@ else
             Write-LogContent -Message '-----------------------------------'
             Write-LogContent -Message "| Url    : $resultUrl"
             Write-LogContent -Message "| Time   : $resultTime seconds"
-              Write-LogContent -Message "| Status : $resultStatus"
+            Write-LogContent -Message "| Status : $resultStatus"
         }
     }
     
