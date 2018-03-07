@@ -1,4 +1,5 @@
-# SPSWakeUp - Wake Up Your SharePoint [https://spwakeup.com Official WebSite](https://spwakeup.com)
+# SPSWakeUp - Wake Up Your SharePoint !
+[https://spwakeup.com Official WebSite](https://spwakeup.com)
 
 ## Description
 
