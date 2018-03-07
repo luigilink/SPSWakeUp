@@ -1,6 +1,6 @@
 ﻿<#
     .SYNOPSIS  
-    WarmUP script for SharePoint 2010, 2013 & 2016
+    SPSWakeUP script for SharePoint 2010, 2013 & 2016
     
     .DESCRIPTION  
     SPSWakeUp is a PowerShell script tool to warm up all site collection in your SharePoint environment.
@@ -12,24 +12,34 @@
     
     .PARAMETER InputFile
     Need parameter input file, example: 
-    PS D:\> E:\SCRIPT\SPSWakeUP.ps1 -InputFile "E:\SCRIPT\SPSWakeUP.xml"
+    PS D:\> E:\SCRIPT\SPSWakeUP.ps1 -InputFile 'E:\SCRIPT\SPSWakeUP.psd1'
 
     .PARAMETER Install
     Use the switch Install parameter if you want to add the warmup script in taskscheduler
-    PS D:\> E:\SCRIPT\SPSWakeUP.ps1 -Install
+    UserName and Password parameter need to be set
+    PS D:\> E:\SCRIPT\SPSWakeUP.ps1 -Install -UserName 'CONTOSO\SPSWakeUP' -Password 'MyPassword'
+
+    .PARAMETER UserName
+    Need parameter UserName whent you use the switch Install parameter
+    PS D:\> E:\SCRIPT\SPSWakeUP.ps1 -Install -UserName 'CONTOSO\SPSWakeUP' -Password 'MyPassword'
+
+    .PARAMETER Password
+    Need parameter Password whent you use the switch Install parameter
+    PS D:\> E:\SCRIPT\SPSWakeUP.ps1 -Install -UserName 'CONTOSO\SPSWakeUP' -Password 'MyPassword'
 
     .EXAMPLE
-    SPSWakeUP.ps1 -InputFile "E:\SCRIPT\SPSWakeUP.xml"
-    SPSWakeUP.ps1 -Install
+    SPSWakeUP.ps1 -InputFile 'E:\SCRIPT\SPSWakeUP.psd1'
+    SPSWakeUP.ps1 -Install -UserName 'CONTOSO\SPSWakeUP' -Password 'MyPassword'
     
     .NOTES  
     FileName:	SPSWakeUP.ps1
     Author:		luigilink (Jean-Cyril DROUHIN)
-    Date:		April 18, 2018
+    Date:		March 07, 2018
     Version:	2.2.0
     Licence:	MIT License
     
     .LINK
+    https://spwakeup.com/
     https://github.com/luigilink/spswakeup
 #>	
 param 
@@ -73,8 +83,7 @@ if (-not($InputFile))
 }
 if (Test-Path -Path $InputFile)
 {
-    #[xml]$xmlinput = (Get-Content -Path $InputFile -ReadCount 0)
-    $xmlinput = Import-LocalizedData -BaseDirectory $scriptRootPath -FileName 'SPSWakeUP.psd1'
+    $dataConfig = Import-LocalizedData -BaseDirectory $scriptRootPath -FileName 'SPSWakeUP.psd1'
 }
 
 #Check UserName and Password if Install parameter is used
@@ -91,7 +100,7 @@ if ($Install)
     	$currentDomain = "LDAP://" + ([ADSI]"").distinguishedName
 		Write-Output "Checking Account `"$UserName`" ..."
 		$dom = New-Object System.DirectoryServices.DirectoryEntry($currentDomain,$UserName,$Password)
-		if ($dom.Path -eq $null)
+		if ($null -eq $dom.Path)
 		{
 			Write-Warning -Message "Password Invalid for user:`"$UserName`""
             Break
@@ -210,11 +219,11 @@ function Send-SPSLog
         $MailBody
     )
     
-    if ($xmlinput.Settings.EmailNotification.Enable)
+    if ($dataConfig.Settings.EmailNotification.Enable)
     {
-        $mailAddress = $xmlinput.Settings.EmailNotification.EmailAddress
-        $smtpServer = $xmlinput.Settings.EmailNotification.SMTPServer
-        $mailSubject = "Automated Script - WarmUp Urls - $env:COMPUTERNAME"
+        $mailAddress = $dataConfig.Settings.EmailNotification.EmailAddress
+        $smtpServer = $dataConfig.Settings.EmailNotification.SMTPServer
+        $mailSubject = "Automated Script - SPSWakeUP Urls - $env:COMPUTERNAME"
 
         Write-LogContent -Message '--------------------------------------------------------------'
         Write-LogContent -Message "Sending Email with Log file to $mailAddress ..."
@@ -244,7 +253,7 @@ function Clear-SPSLog
     if (Test-Path $path)
     {
         # Days of logs that will be remaining after log cleanup. 
-        $days = $xmlinput.Settings.CleanLogsDays
+        $days = $dataConfig.Settings.CleanLogsDays
         
         # Get the current date
         $Now = Get-Date
@@ -418,13 +427,12 @@ function Add-RASharePoint
 # ===================================================================================
 function Add-SystemWeb
 {
-    if ($xmlinput.Settings.UseIEforWarmUp -eq $false)
-    {
-        Write-LogContent -Message '--------------------------------------------------------------'
-        Write-LogContent -Message 'Loading System.Web ...'
-        [System.Reflection.Assembly]::LoadWithPartialName("system.web") | Out-Null
-        Write-LogContent -Message '--------------------------------------------------------------'
-    }
+
+    Write-LogContent -Message '--------------------------------------------------------------'
+    Write-LogContent -Message 'Loading System.Web ...'
+    [System.Reflection.Assembly]::LoadWithPartialName("system.web") | Out-Null
+    Write-LogContent -Message '--------------------------------------------------------------'
+    
 }
 # ===================================================================================
 # Name: 		Get-SPSThrottleLimit
@@ -432,8 +440,6 @@ function Add-SystemWeb
 # ===================================================================================
 function Get-SPSThrottleLimit
 {    
-    Write-LogContent -Message '--------------------------------------------------------------'
-    Write-LogContent -Message 'Get Number Of Throttle Limit (from NumberOfLogicalProcessors)'
     [int]$NumThrottle = 8 
 
     # Get Number Of Throttle Limit
@@ -451,7 +457,6 @@ function Get-SPSThrottleLimit
     {
         $NumThrottle = 2*$numLogicalCpu
     }
-    Write-LogContent -Message "Number Of Throttle Limit will be $NumThrottle"
     
     return $NumThrottle
 }
@@ -544,7 +549,7 @@ function Get-SPSSitesUrl
         [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $topologySvcUrl))
         
         # Get url of CentralAdmin if include in input xml file
-        if ($xmlinput.Settings.IncludeCentralAdmin -eq $true)
+        if ($dataConfig.Settings.IncludeCentralAdmin -eq $true)
         {
             $webAppADM = Get-SPWebApplication -IncludeCentralAdministration | Where-Object -FilterScript {
                 $_.IsAdministrationWebApplication
@@ -854,142 +859,6 @@ function Invoke-SPSWebRequest
     }
     $Results
 }
-# ===================================================================================
-# Name: 		Get-IEWebRequest
-# Description:	Open Url in Internet Explorer Window
-# ===================================================================================
-function Get-IEWebRequest
-{
-    param
-    (
-        [Parameter(Mandatory=$true)]$urls
-    )
-    # Run Internet Explorer
-    $ieApp = New-Object -com "InternetExplorer.Application"
-    $ieApp.Navigate("about:blank")
-    $ieApp.visible = $true
-    $ieProc = (Get-Process -Name iexplore) | Where-Object {$_.MainWindowHandle -eq $ieApp.HWND}
-    
-    foreach ($url in $urls)
-    {
-        Write-LogContent -Message "Internet Explorer - Browsing $url"
-        $TimeOut = 90
-        $Wait = 0
-        try
-        {
-            $ieApp.Navigate($url)
-            While ($ie.busy -like "True" -Or $Wait -gt $TimeOut)
-            {
-                Start-Sleep -s 1
-                $Wait++
-            }
-            Write-LogContent -Message "Green" "   * WebSite successfully loaded in $Wait s"
-        }
-        catch
-        {
-            $pid = $ieProc.id
-            Write-LogContent -Message "Red" "  IE not responding.  Closing process ID $pid"
-            $ieApp.Quit()
-            $ieProc | Stop-Process -Force
-            $ieApp = New-Object -com "InternetExplorer.Application"
-            $ieApp.Navigate("about:blank")
-            $ieApp.visible = $true
-            $ieProc = (Get-Process -Name iexplore)| Where-Object {$_.MainWindowHandle -eq $ieApp.HWND}
-        }
-    }
-    # Quit Internet Explorer
-    if ($ieApp)
-    {
-        Write-LogContent -Message '--------------------------------------------------------------'
-        Write-LogContent -Message "Closing Internet Explorer ..."
-        $ieApp.Quit()
-    }
-}
-# ===================================================================================
-# Name: 		Invoke-IEWebRequest
-# Description:	Multi-Threading Request Url in Internet Explorer Window
-# ===================================================================================
-function Invoke-IEWebRequest
-{
-    param
-    (
-        [Parameter(Mandatory=$true)]$Urls,
-        [Parameter(Mandatory=$true)]$throttleLimit
-    )
-    
-    $iss = [system.management.automation.runspaces.initialsessionstate]::CreateDefault()
-    $Pool = [runspacefactory]::CreateRunspacePool(1, $throttleLimit, $iss, $Host)
-    $Pool.Open()
-        
-    $ScriptBlock = 
-    {
-        $RunResult
-    }
-
-    $Jobs = @()
-
-    $Urls | Where-Object -FilterScript {
-        
-        $url = $_.Url
-        
-        # Run Internet Explorer
-        $ie = New-Object -com "InternetExplorer.Application"
-        $ie.Navigate("about:blank")
-        $ie.visible = $true
-        $ieproc = (Get-Process -Name iexplore)| Where-Object -FilterScript {$_.MainWindowHandle -eq $ie.HWND}
-        
-        $TimeOut = 90
-        $Wait = 0
-        try
-        {
-            $ie.Navigate($url)
-            While ($ie.busy -like "True" -Or $Wait -gt $TimeOut)
-            {
-                Start-Sleep -s 1
-                $Wait++
-            }
-            $Response = "OK"
-        }
-        catch
-        {
-            $pid = $ieproc.id
-            $Response = "IE not responding.  Closing process ID $pid"
-            $ie.Quit()
-            $ieproc | Stop-Process -Force
-            $ie = New-Object -com "InternetExplorer.Application"
-            $ie.Navigate("about:blank")
-            $ie.visible = $true
-            $ieproc = (Get-Process -Name iexplore) | Where-Object -FilterScript {
-                $_.MainWindowHandle -eq $ie.HWND
-            }
-        }
-        finally
-        {
-            $ie.Quit()
-            #$ieproc | Stop-Process -Force 
-        }
-
-        $RunResult = New-Object PSObject
-        $RunResult | Add-Member -MemberType NoteProperty -Name Url -Value $url
-        $RunResult | Add-Member -MemberType NoteProperty -Name 'Time(s)' -Value $Wait
-        $RunResult | Add-Member -MemberType NoteProperty -Name Status -Value $Response
-
-    }
-
-    While ($Jobs.Result.IsCompleted -contains $false)
-    {
-       Start-Sleep -s 1
-    } 
-
-    $Results = @()
-    foreach ($Job in $Jobs)
-    {   
-        $Results += $Job.Pipe.EndInvoke($Job.Result)
-    }
- 
-    $Pool.Dispose()
-    $Results
-}
 #endregion
 
 #region Configuration and permission
@@ -1006,7 +875,7 @@ function Disable-LoopbackCheck
     
     # Disable the Loopback Check on stand alone demo servers.
     # This setting usually kicks out a 401 error when you try to navigate to sites that resolve to a loopback address e.g.  127.0.0.1
-    if ($xmlinput.Settings.DisableLoopbackCheck -eq $true)
+    if ($dataConfig.Settings.DisableLoopbackCheck -eq $true)
     {
         
         $lsaPath = "HKLM:\System\CurrentControlSet\Control\Lsa"
@@ -1069,7 +938,7 @@ function Backup-HostsFile
         [Parameter(Mandatory=$true)]$hostsBackupPath
     )
     
-    if ($xmlinput.Settings.AddURLsToHOSTS.Enable -eq $true)
+    if ($dataConfig.Settings.AddURLsToHOSTS.Enable -eq $true)
     {
         Write-LogContent -Message "Backing up $hostsFilePath file to:"
         Write-LogContent -Message "$hostsBackupPath"
@@ -1087,7 +956,7 @@ function Restore-HostsFile
         [Parameter(Mandatory=$true)]$hostsFilePath,
         [Parameter(Mandatory=$true)]$hostsBackupPath
     )
-    if ($xmlinput.Settings.AddURLsToHOSTS.Enable -eq $true -AND $xmlinput.Settings.AddURLsToHOSTS.KeepOriginal -eq $true)
+    if ($dataConfig.Settings.AddURLsToHOSTS.Enable -eq $true -AND $dataConfig.Settings.AddURLsToHOSTS.KeepOriginal -eq $true)
     {
         Write-LogContent -Message "Restoring $hostsBackupPath file to:"
         Write-LogContent -Message "$hostsFilePath"
@@ -1109,7 +978,7 @@ function Clear-HostsFileCopy
     if (Test-Path $hostsFolderPath)
     {
         # Number of files that will be remaining after backup cleanup. 
-        $numberFiles = $xmlinput.Settings.AddURLsToHOSTS.Retention	
+        $numberFiles = $dataConfig.Settings.AddURLsToHOSTS.Retention	
         # Definie the extension of log files
         $extension = "*.copy"
         
@@ -1147,11 +1016,11 @@ function Add-HostsEntry
         [Parameter(Mandatory=$true)]$hostNameList
     )
 
-    if ($xmlinput.Settings.AddURLsToHOSTS.Enable -eq $true -and $hostNameList)
+    if ($dataConfig.Settings.AddURLsToHOSTS.Enable -eq $true -and $hostNameList)
     {
         $hostsContentFile =  New-Object System.Collections.Generic.List[string]
         # Check if the IPv4Address configured in XML Input file is reachable
-        $hostIPV4Addr = $xmlinput.Settings.AddURLsToHOSTS.IPv4Address
+        $hostIPV4Addr = $dataConfig.Settings.AddURLsToHOSTS.IPv4Address
         Write-LogContent -Message "Testing connection (via Ping) to `"$hostIPV4Addr`"..."
         $canConnect = Test-Connection $hostIPV4Addr -Count 1 -Quiet
         if ($canConnect) {Write-LogContent -Message "IPv4Address $hostIPV4Addr will be used in HOSTS File during WarmUP ..."}
@@ -1181,7 +1050,7 @@ function Add-HostsEntry
 #       38.25.63.10     x.acme.com              # x client host
 ")
 
-        if ($xmlinput.Settings.AddURLsToHOSTS.ListRevocationUrl -eq $true){$hostsContentFile.Add("127.0.0.1 `t crl.microsoft.com")}		
+        if ($dataConfig.Settings.AddURLsToHOSTS.ListRevocationUrl -eq $true){$hostsContentFile.Add("127.0.0.1 `t crl.microsoft.com")}		
         ForEach ($hostname in $hostNameList)
         {
             # Remove http or https information to keep only HostName or FQDN		
@@ -1218,7 +1087,7 @@ function Add-SPSUserPolicy
         try
         {
             $webapp = [Microsoft.SharePoint.Administration.SPWebApplication]::Lookup("$url")		
-            $displayName = 'WarmUp Account'
+            $displayName = 'SPSWakeUP Account'
             
             # If the web app is not Central Administration 
             if ($webapp.IsAdministrationWebApplication -eq $false)
@@ -1235,7 +1104,7 @@ function Add-SPSUserPolicy
                 Write-LogContent -Message "Applying Read access for $user account to $url..."
                 [Microsoft.SharePoint.Administration.SPPolicyCollection]$policies = $webapp.Policies
                 $policyExist = $policies | Where-Object -FilterScript {
-                    $_.Displayname -eq 'WarmUp Account'
+                    $_.Displayname -eq 'SPSWakeUP Account'
                 }
                 
                 if (-not ($policyExist))
@@ -1333,7 +1202,7 @@ function Clear-IECache
 # ===================================================================================
 function Disable-IEESC
 {
-    if ($xmlinput.Configuration.Settings.DisableIEESC -eq $true)
+    if ($dataConfig.Configuration.Settings.DisableIEESC -eq $true)
     {
         Write-LogContent -Message '--------------------------------------------------------------'
         try
@@ -1382,7 +1251,7 @@ function Disable-IEFirstRun
 #region Main
 # ===================================================================================
 #
-# WarmUp Script - MAIN Region
+# SPSWakeUP Script - MAIN Region
 #
 # ===================================================================================
 $DateStarted = Get-date
@@ -1401,6 +1270,9 @@ Write-LogContent -Message "| PowerShell Version: $psVersion |"
 Write-LogContent -Message "| SharePoint Version: $spsVersion |"
 Write-LogContent -Message '-------------------------------------'
 
+Write-LogContent -Message "Setting power management plan to `"High Performance`"..."
+Start-Process -FilePath "$env:SystemRoot\system32\powercfg.exe" -ArgumentList "/s 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c" -NoNewWindow
+
 # Check Permission Level
 if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))
 {
@@ -1416,9 +1288,6 @@ else
     Add-RASharePoint
     Add-PSSharePoint
     Add-SystemWeb
-
-    # Get Number Of Throttle Limit 
-    [int]$NumThrottle = Get-SPSThrottleLimit
 
     # Get All Web Applications Urls, Host Named Site Collection and Site Collections
     Write-LogContent -Message '--------------------------------------------------------------'
@@ -1449,14 +1318,12 @@ else
             Add-HostsEntry -hostNameList $hostEntries
         }
 
-        # Add read access for Warmup User account in User Policies settings
+        
         if ($Install)
         {
+            # Add read access for Warmup User account in User Policies settings
             Add-SPSUserPolicy -urls $getSPWebApps
-        }        
-        
-        if ($xmlinput.Configuration.Settings.UseIEforWarmUp -eq $true)
-        {
+
             # Disable Internet Explorer Enhanced Security Configuration and First Run
             Disable-IEESC
             Disable-IEFirstRun
@@ -1466,23 +1333,14 @@ else
             if ($null -ne $getSPSiteColN)
             {
                 Add-IETrustedSite $getSPSiteColN
-            }			
-
-            # Remove Internet Explorer Temporary Files with RunDll32.exe
-            Clear-IECache
-            
-            # Request Url with Internet Explorer for All Site Collections Urls
-            Write-LogContent -Message '--------------------------------------------------------------'
-            Write-LogContent -Message 'Opening All sites Urls with Internet Explorer, Please Wait...'
-            $InvokeResults = Invoke-IEWebRequest -Urls $getSPSites -throttleLimit $NumThrottle
-        }
-        else
-        {
-            # Request Url with System.Net.WebClient Object for All Site Collections Urls
-            Write-LogContent -Message '--------------------------------------------------------------'
-            Write-LogContent -Message 'Opening All sites Urls with Web Request Object, Please Wait...'
-            $InvokeResults = Invoke-SPSWebRequest -Urls $getSPSites -throttleLimit $NumThrottle
-        }
+            }	
+        }        
+      
+        # Request Url with System.Net.WebClient Object for All Site Collections Urls
+        Write-LogContent -Message '--------------------------------------------------------------'
+        Write-LogContent -Message 'Opening All sites Urls with Web Request Object, Please Wait...'
+        $InvokeResults = Invoke-SPSWebRequest -Urls $getSPSites -throttleLimit (Get-SPSThrottleLimit)
+        
         # Show the results
         foreach ($InvokeResult in $InvokeResults)
         {
@@ -1517,7 +1375,7 @@ else
     Save-LogFile $pathLogFile
     
     # Send Email with log file in attachment - For settings see XML input file
-    $mailLogContent = "Automated Script - WarmUp Urls - Started on: $DateStarted <br>"
+    $mailLogContent = "Automated Script - SPSWakeUP - Started on: $DateStarted <br>"
     $mailLogContent += "SharePoint Server : $env:COMPUTERNAME<br>"
     Send-SPSLog -MailAttachment $pathLogFile -MailBody $mailLogContent
     

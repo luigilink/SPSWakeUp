@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+### 2.2.0
+
 * Support of Form Based Authentication (XML element removed from SPSWakeUP.xml)
 * Update description of script
 * Remove all global variables
@@ -16,9 +18,13 @@
   * Function Names Must Use Approved Verbs
   * Using Named Parameters Instead of Positional Parameters
   * Rename logfolder by scriptRootPath
-* Add SPSWakeUp.psd1 file to replace xml file in next release
+  * Remove variable not used
+* Add SPSWakeUp.psd1 file to replace xml file
 * Update ps1 for the input file psd1
 * Add UserName and Password parameter for installation process
+* Remove SPSWakeUP.xml file
+* Remove Internet Explorer warmup in ps1 and psd1 files
+* Update parameter of script
 
 ### 2.1.4
 

@@ -5,15 +5,15 @@
     .NOTES  
     FileName:	SPSWakeUP.psd1
     Author:		luigilink (Jean-Cyril DROUHIN)
-    Date:		April 18, 2018
+    Date:		March 07, 2018
     Version:	2.2.0
     Licence:	MIT License
     
     .LINK
+    https://spwakeup.com/
     https://github.com/luigilink/spswakeup
 #>
 @{
-    #This settings section helps to configure Windows OS and Internet Explorer to permit access web URL in a local context
     Settings =
     @{
 		#Disables network loopback checks. This prevents the OS blocking access to your server under names other than its actual host name
@@ -30,8 +30,6 @@
         } 
 		#Include Central Administration Url in WarmUp
 		IncludeCentralAdmin     = $true
-		#Use internet explorer for WarmUp
-        UseIEforWarmUp          = $false
         #Number of Days for keeping Logs Files
         CleanLogsDays           = 30
         #This EmailNotification section configure settings for mail notifications
