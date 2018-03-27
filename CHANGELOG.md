@@ -3,6 +3,7 @@
 ## Unreleased
 
 * Add Try-Catch exception in Get-SPSThrottleLimit function
+* Fix issue on Get-SPSThrottleLimit when CimInstance returns an array
 
 ### 2.2.0
 

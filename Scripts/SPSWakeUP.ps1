@@ -65,7 +65,7 @@ Clear-Host
 $Host.UI.RawUI.WindowTitle = "WarmUP script running on $env:COMPUTERNAME"
 
 # Define variable
-$spsWakeupVersion = '2.2.0'
+$spsWakeupVersion = '2.2.1'
 $currentUser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
 $scriptRootPath = Split-Path -parent $MyInvocation.MyCommand.Definition
 
@@ -445,11 +445,13 @@ function Get-SPSThrottleLimit
     # Get Number Of Throttle Limit
     try
     {
-        $cimInstanceProc = Get-CimInstance -ClassName Win32_Processor
-        $numLogicalCpu = (Measure-Object -InputObject $cimInstanceProc -Property NumberOfLogicalProcessors -Sum).Sum
+        $cimInstanceProc = @(Get-CimInstance -ClassName Win32_Processor)
+        $cimInstanceSocket = $cimInstanceProc.count
+        $numLogicalCpu = $cimInstanceProc[0].NumberOfLogicalProcessors * $cimInstanceSocket
+
         if ($numLogicalCpu -le 2)
         {
-            $NumThrottle = 2*$numLogicalCpu
+            $NumThrottle = 2 * $numLogicalCpu
         }
         elseif ($numLogicalCpu -ge 8)
         {
@@ -457,7 +459,7 @@ function Get-SPSThrottleLimit
         }
         else 
         {
-            $NumThrottle = 2*$numLogicalCpu
+            $NumThrottle = 2 * $numLogicalCpu
         }
     }
     catch
