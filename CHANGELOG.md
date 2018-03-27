@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+* Add Try-Catch exception in Get-SPSThrottleLimit function
+
 ### 2.2.0
 
 * Support of Form Based Authentication (XML element removed from SPSWakeUP.xml)
