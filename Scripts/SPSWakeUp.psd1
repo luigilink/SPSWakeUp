@@ -1,12 +1,12 @@
 <#
     .DESCRIPTION  
-    SPSWakeUP Configuration file for SharePoint 2010, 2013 & 2016
+    SPSWakeUP Configuration file for SharePoint OnPremises
 
     .NOTES  
     FileName:	SPSWakeUP.psd1
     Author:		luigilink (Jean-Cyril DROUHIN)
-    Date:		March 27, 2018
-    Version:	2.2.1
+    Date:		November 27, 2019
+    Version:	2.3.0
     Licence:	MIT License
     
     .LINK

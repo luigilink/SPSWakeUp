@@ -1,10 +1,10 @@
 ﻿<#
     .SYNOPSIS  
-    SPSWakeUP script for SharePoint 2010, 2013 & 2016
+    SPSWakeUP script for SharePoint OnPremises
     
     .DESCRIPTION  
     SPSWakeUp is a PowerShell script tool to warm up all site collection in your SharePoint environment.
-    It's compatible with all supported versions for SharePoint (2010 to 2016).
+    It's compatible with all supported versions for SharePoint (2010 to 2019).
     Use Internet Explorer to download JS, CSS and Pictures files, 
     Log script results in log file, 
     Email nofications, 
@@ -17,25 +17,21 @@
     .PARAMETER Install
     Use the switch Install parameter if you want to add the warmup script in taskscheduler
     UserName and Password parameter need to be set
-    PS D:\> E:\SCRIPT\SPSWakeUP.ps1 -Install -UserName 'CONTOSO\SPSWakeUP' -Password 'MyPassword'
+    PS D:\> E:\SCRIPT\SPSWakeUP.ps1 -Install -InstallAccount (Get-Credential)
 
-    .PARAMETER UserName
-    Need parameter UserName whent you use the switch Install parameter
-    PS D:\> E:\SCRIPT\SPSWakeUP.ps1 -Install -UserName 'CONTOSO\SPSWakeUP' -Password 'MyPassword'
-
-    .PARAMETER Password
-    Need parameter Password whent you use the switch Install parameter
-    PS D:\> E:\SCRIPT\SPSWakeUP.ps1 -Install -UserName 'CONTOSO\SPSWakeUP' -Password 'MyPassword'
+    .PARAMETER InstallAccount
+    Need parameter InstallAccount whent you use the switch Install parameter
+    PS D:\> E:\SCRIPT\SPSWakeUP.ps1 -Install -InstallAccount (Get-Credential)
 
     .EXAMPLE
     SPSWakeUP.ps1 -InputFile 'E:\SCRIPT\SPSWakeUP.psd1'
-    SPSWakeUP.ps1 -Install -UserName 'CONTOSO\SPSWakeUP' -Password 'MyPassword'
+    SPSWakeUP.ps1 -Install -InstallAccount (Get-Credential)
     
     .NOTES  
     FileName:	SPSWakeUP.ps1
     Author:		luigilink (Jean-Cyril DROUHIN)
-    Date:		March 27, 2018
-    Version:	2.2.1
+    Date:		November 27, 2019
+    Version:	2.3.0
     Licence:	MIT License
     
     .LINK
@@ -53,12 +49,8 @@ param
     $Install,
 
     [Parameter()]
-    [System.String]
-    $UserName,
-
-    [Parameter()]
-    [System.String]
-    $Password
+    [System.Management.Automation.PSCredential]
+    $InstallAccount
 )
 
 Clear-Host
@@ -75,6 +67,9 @@ $logFileContent =  New-Object -TypeName System.Collections.Generic.List[string]
 $hostEntries =  New-Object -TypeName System.Collections.Generic.List[string]
 $hostsFile = "$env:windir\System32\drivers\etc\HOSTS"
 $hostsFileCopy = $hostsFile + '.' + (Get-Date -UFormat "%y%m%d%H%M%S").ToString() + '.copy'
+
+$UserName = $InstallAccount.UserName
+$Password = $InstallAccount.GetNetworkCredential().Password
 
 # Get the content of the SPSWakeUP.xml file
 if (-not($InputFile))
@@ -615,7 +610,10 @@ function Get-SPSSitesUrl
                 {
                     $siteUrl = $site.Url
                 }
-                [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteUrl -FBA $fbaSParameter -Win $winParameter))
+                if ($siteUrl -notmatch 'sitemaster-')
+                {
+                    [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteUrl -FBA $fbaSParameter -Win $winParameter))
+                }
                 $site.Dispose()
             }
 
@@ -649,8 +647,11 @@ function Get-SPSHSNCUrl
     
     foreach ($HSNC in $HSNCs)
     {
-        [void]$hsncURL.Add($HSNC.Url)
-        Add-SPSHostEntry -Url $HSNC.Url
+        if ($HSNC.Url -notmatch 'sitemaster-')
+        {
+            [void]$hsncURL.Add($HSNC.Url)
+            Add-SPSHostEntry -Url $HSNC.Url
+        }
         $HSNC.Dispose()
     }
 
@@ -1299,6 +1300,18 @@ else
     Add-PSSharePoint
     Add-SystemWeb
 
+    # From SharePoint 2016, check if MinRole equal to Search
+    $currentSPServer = Get-SPServer | Where-Object -FilterScript {$_.Address -eq $env:COMPUTERNAME}
+    if ($null -ne $currentSPServer -and (Get-SPFarm).buildversion.major -ge 16)
+    {
+        if ($currentSPServer.Role -eq 'Search')
+        {
+            Write-Warning -Message 'You run this script on server with Search MinRole'
+            Write-LogContent -Message 'Search MinRole is not supported in SPSWakeUp'
+            Break
+        }
+    }
+    
     # Get All Web Applications Urls, Host Named Site Collection and Site Collections
     Write-LogContent -Message '--------------------------------------------------------------'
     Write-LogContent -Message 'Get URLs of All Web Applications ...'
@@ -1324,8 +1337,24 @@ else
             # Make backup copy of the Hosts file with today's date Add Web Application and Host Named Site Collection Urls in HOSTS system File
             Write-LogContent -Message '--------------------------------------------------------------'
             Write-LogContent -Message 'Add Urls of All Web Applications or HSNC in HOSTS File ...'
-            Backup-HostsFile -hostsFilePath $hostsFile -hostsBackupPath $hostsFileCopy
-            Add-HostsEntry -hostNameList $hostEntries
+            
+            foreach ($hostEntry in $hostEntries)
+            {
+                $hostEntryIsPresent = Select-String -Path $hostsFile -Pattern $hostEntry
+                if ($null -eq $hostEntryIsPresent)
+                {
+                    $hostFileNeedsUpdate = $true
+                }
+            }
+            if ($hostFileNeedsUpdate)
+            {
+                Backup-HostsFile -hostsFilePath $hostsFile -hostsBackupPath $hostsFileCopy
+                Add-HostsEntry -hostNameList $hostEntries
+            }
+            else
+            {
+                Write-LogContent -Message 'HOSTS File already contains Urls of All Web Applications or HSNC- skipping.'
+            }
         }
         
         if ($Install)
