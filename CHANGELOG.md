@@ -1,5 +1,14 @@
 # Change log for SPSWakeUp
 
+## 2.3.0
+
+* Remove Modules folder
+* Update README.md (Add SharePoint 2019 support)
+* Remove sitemaster-[GUID] urls in Get-SPSSitesUrl and Get-SPSHSNCUrl functions
+* For SharePoint 2016 or higher, check if local server has Search MinRole
+* Check if HOSTS File already contains Urls of All Web Applications or HSNC
+* Security Fix: Change UserName and Password parameters by InstallAccount parameter
+
 ## 2.2.1
 
 * Add Try-Catch exception in Get-SPSThrottleLimit function
