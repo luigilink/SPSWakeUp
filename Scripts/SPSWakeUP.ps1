@@ -34,8 +34,8 @@
     .NOTES  
     FileName:	SPSWakeUP.ps1
     Author:		luigilink (Jean-Cyril DROUHIN)
-    Date:		March 07, 2018
-    Version:	2.2.0
+    Date:		March 27, 2018
+    Version:	2.2.1
     Licence:	MIT License
     
     .LINK
@@ -65,7 +65,7 @@ Clear-Host
 $Host.UI.RawUI.WindowTitle = "WarmUP script running on $env:COMPUTERNAME"
 
 # Define variable
-$spsWakeupVersion = '2.2.0'
+$spsWakeupVersion = '2.2.1'
 $currentUser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
 $scriptRootPath = Split-Path -parent $MyInvocation.MyCommand.Definition
 
@@ -443,21 +443,30 @@ function Get-SPSThrottleLimit
     [int]$NumThrottle = 8 
 
     # Get Number Of Throttle Limit
-    $cimInstanceProc = Get-CimInstance -ClassName Win32_Processor
-    $numLogicalCpu = (Measure-Object -InputObject $cimInstanceProc -Property NumberOfLogicalProcessors -Sum).Sum
-    if ($numLogicalCpu -le 2)
+    try
     {
-        $NumThrottle = 2*$numLogicalCpu
+        $cimInstanceProc = @(Get-CimInstance -ClassName Win32_Processor)
+        $cimInstanceSocket = $cimInstanceProc.count
+        $numLogicalCpu = $cimInstanceProc[0].NumberOfLogicalProcessors * $cimInstanceSocket
+
+        if ($numLogicalCpu -le 2)
+        {
+            $NumThrottle = 2 * $numLogicalCpu
+        }
+        elseif ($numLogicalCpu -ge 8)
+        {
+            $NumThrottle = 10
+        }
+        else 
+        {
+            $NumThrottle = 2 * $numLogicalCpu
+        }
     }
-    elseif ($numLogicalCpu -ge 8)
+    catch
     {
-        $NumThrottle = 10
+        Write-Warning -Message $_			    
     }
-    else 
-    {
-        $NumThrottle = 2*$numLogicalCpu
-    }
-    
+
     return $NumThrottle
 }
 #endregion
@@ -1101,7 +1110,7 @@ function Add-SPSUserPolicy
                 {
                     $user = $userName
                 }
-                Write-LogContent -Message "Applying Read access for $user account to $url..."
+                Write-LogContent -Message "Checking Read access for $user account to $url..."
                 [Microsoft.SharePoint.Administration.SPPolicyCollection]$policies = $webapp.Policies
                 $policyExist = $policies | Where-Object -FilterScript {
                     $_.Displayname -eq 'SPSWakeUP Account'
@@ -1109,6 +1118,7 @@ function Add-SPSUserPolicy
                 
                 if (-not ($policyExist))
                 {
+                    Write-LogContent -Message "Applying Read access for $user account to $url..."
                     [Microsoft.SharePoint.Administration.SPPolicy]$policy = $policies.Add($user, $displayName)
                     $policyRole = $webApp.PolicyRoles.GetSpecialRole([Microsoft.SharePoint.Administration.SPPolicyRoleType]::FullRead)
                     if ($null -ne $policyRole)
@@ -1317,7 +1327,6 @@ else
             Backup-HostsFile -hostsFilePath $hostsFile -hostsBackupPath $hostsFileCopy
             Add-HostsEntry -hostNameList $hostEntries
         }
-
         
         if ($Install)
         {

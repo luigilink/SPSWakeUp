@@ -5,8 +5,8 @@
     .NOTES  
     FileName:	SPSWakeUP.psd1
     Author:		luigilink (Jean-Cyril DROUHIN)
-    Date:		March 07, 2018
-    Version:	2.2.0
+    Date:		March 27, 2018
+    Version:	2.2.1
     Licence:	MIT License
     
     .LINK

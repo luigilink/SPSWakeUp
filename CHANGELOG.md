@@ -1,6 +1,10 @@
 # Change log for SPSWakeUp
 
-## Unreleased
+## 2.2.1
+
+* Add Try-Catch exception in Get-SPSThrottleLimit function
+* Fix issue on Get-SPSThrottleLimit when CimInstance returns an array
+* Update README.md file with Latest release date, Total downloads and Issues opened
 
 ### 2.2.0
 
