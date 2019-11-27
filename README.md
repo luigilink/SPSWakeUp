@@ -1,4 +1,5 @@
-# SPSWakeUp - Wake Up Your SharePoint !
+# SPSWakeUp - Wake Up Your SharePoint
+
 [https://spwakeup.com - Official WebSite](https://spwakeup.com)
 
 ![Latest release date](https://img.shields.io/github/release-date/luigilink/spswakeup.svg?style=flat)
