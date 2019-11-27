@@ -2,11 +2,8 @@
 [https://spwakeup.com - Official WebSite](https://spwakeup.com)
 
 ![Latest release date](https://img.shields.io/github/release-date/luigilink/spswakeup.svg?style=flat)
-![Latest release downloads](https://img.shields.io/github/downloads/luigilink/spswakeup/latest/total.svg?style=flat)
 ![Total downloads](https://img.shields.io/github/downloads/luigilink/spswakeup/total.svg?style=flat)  
 ![Issues opened](https://img.shields.io/github/issues/luigilink/spswakeup.svg?style=flat)
-![Code size](https://img.shields.io/github/languages/code-size/luigilink/spswakeup.svg?style=flat)
-![License](https://img.shields.io/github/license/luigilink/spswakeup.svg?style=flat)
 
 ## Description
 
