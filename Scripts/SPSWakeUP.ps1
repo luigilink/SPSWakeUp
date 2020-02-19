@@ -30,8 +30,8 @@
     .NOTES  
     FileName:	SPSWakeUP.ps1
     Author:		luigilink (Jean-Cyril DROUHIN)
-    Date:		November 27, 2019
-    Version:	2.3.0
+    Date:		February 19, 2020
+    Version:	2.3.1
     Licence:	MIT License
     
     .LINK
@@ -57,7 +57,7 @@ Clear-Host
 $Host.UI.RawUI.WindowTitle = "WarmUP script running on $env:COMPUTERNAME"
 
 # Define variable
-$spsWakeupVersion = '2.2.1'
+$spsWakeupVersion = '2.3.1'
 $currentUser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
 $scriptRootPath = Split-Path -parent $MyInvocation.MyCommand.Definition
 
@@ -67,9 +67,6 @@ $logFileContent =  New-Object -TypeName System.Collections.Generic.List[string]
 $hostEntries =  New-Object -TypeName System.Collections.Generic.List[string]
 $hostsFile = "$env:windir\System32\drivers\etc\HOSTS"
 $hostsFileCopy = $hostsFile + '.' + (Get-Date -UFormat "%y%m%d%H%M%S").ToString() + '.copy'
-
-$UserName = $InstallAccount.UserName
-$Password = $InstallAccount.GetNetworkCredential().Password
 
 # Get the content of the SPSWakeUP.xml file
 if (-not($InputFile))
@@ -84,22 +81,25 @@ if (Test-Path -Path $InputFile)
 #Check UserName and Password if Install parameter is used
 if ($Install)
 {
-    if (-not($UserName) -or -not($Password))
+    if ($null -eq $InstallAccount)
     {
-        Write-Warning -Message ("SPSWakeUp: Install parameter is set. Please set also UserName and " + `
-                                "Password parameter. `nSee https://spwakeup.com for details.")
+        Write-Warning -Message ("SPSWakeUp: Install parameter is set. Please set also InstallAccount " + `
+                                "parameter. `nSee https://spwakeup.com for details.")
         Break
     }
     else
     {
-    	$currentDomain = "LDAP://" + ([ADSI]"").distinguishedName
-		Write-Output "Checking Account `"$UserName`" ..."
-		$dom = New-Object System.DirectoryServices.DirectoryEntry($currentDomain,$UserName,$Password)
-		if ($null -eq $dom.Path)
-		{
-			Write-Warning -Message "Password Invalid for user:`"$UserName`""
+        $UserName = $InstallAccount.UserName
+        $Password = $InstallAccount.GetNetworkCredential().Password
+    
+        $currentDomain = "LDAP://" + ([ADSI]"").distinguishedName
+        Write-Output "Checking Account `"$UserName`" ..."
+        $dom = New-Object System.DirectoryServices.DirectoryEntry($currentDomain,$UserName,$Password)
+        if ($null -eq $dom.Path)
+        {
+            Write-Warning -Message "Password Invalid for user:`"$UserName`""
             Break
-		}
+        }
     }
 }
 
