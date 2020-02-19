@@ -30,8 +30,8 @@
     .NOTES  
     FileName:	SPSWakeUP.ps1
     Author:		luigilink (Jean-Cyril DROUHIN)
-    Date:		November 27, 2019
-    Version:	2.3.0
+    Date:		February 19, 2020
+    Version:	2.3.1
     Licence:	MIT License
     
     .LINK
@@ -57,7 +57,7 @@ Clear-Host
 $Host.UI.RawUI.WindowTitle = "WarmUP script running on $env:COMPUTERNAME"
 
 # Define variable
-$spsWakeupVersion = '2.2.1'
+$spsWakeupVersion = '2.3.1'
 $currentUser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
 $scriptRootPath = Split-Path -parent $MyInvocation.MyCommand.Definition
 
