@@ -1,5 +1,9 @@
 # Change log for SPSWakeUp
 
+## 2.3.1
+
+* Fix issue "You cannot call a method on a null-valued expression" when InstallAccount variable is null
+
 ## 2.3.0
 
 * Remove Modules folder
