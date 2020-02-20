@@ -1,5 +1,18 @@
 # Change log for SPSWakeUp
 
+## 2.4.0
+
+* Add Uninstall and OnlyRootWeb parameters
+* Remove functions:
+  * Get-SPSWebRequest,
+  * Add-IETrustedSite,
+  * Clear-IECache
+* Add functions:
+  * Remove-SPSTask
+* Update Get-SPSSitesUrl function with Service Application Urls and SPWeb urls
+* Update README.md: remove Internet Explorer information
+* Add reporting: Memory Usage for each worker process
+
 ## 2.3.1
 
 * Fix issue "You cannot call a method on a null-valued expression" when InstallAccount variable is null
