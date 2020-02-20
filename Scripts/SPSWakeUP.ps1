@@ -5,7 +5,7 @@
     .DESCRIPTION
     SPSWakeUp is a PowerShell script tool to warm up all site collection in your SharePoint environment.
     It's compatible with all supported versions for SharePoint (2010 to 2019).
-    Use Internet Explorer to download JS, CSS and Pictures files,
+    Use WebRequest object in multi-thread to download JS, CSS and Pictures files,
     Log script results in log file,
     Email nofications,
     Configure automatically prerequisites for a best warm-up,
@@ -185,7 +185,7 @@ function Save-LogFile
     param
     (
         [Parameter(Mandatory=$true)]
-        [string]
+        [System.String]
         $Path
     )
 
@@ -261,7 +261,7 @@ function Clear-SPSLog
     param
     (
         [Parameter(Mandatory=$true)]
-        [string]$path
+        [System.String]$path
     )
 
     if (Test-Path $path)
@@ -315,7 +315,7 @@ function Add-SPSTask
     param
     (
         [Parameter(Mandatory=$true)]
-        [string]
+        [System.String]
         $Path
     )
 
@@ -551,7 +551,7 @@ function Add-SPSSitesUrl
     param
     (
         [Parameter(Mandatory=$true)]
-        [string]
+        [System.String]
         $Url,
 
         [Parameter(Mandatory=$false)]
@@ -1266,10 +1266,10 @@ if ($PSVersionTable.PSVersion -gt [Version]'2.0' -and $spsVersion -lt 15)
 }
 
 Write-LogContent -Message '-------------------------------------'
-Write-LogContent -Message "| Automated Script - SPSWakeUp v$spsWakeupVersion |"
-Write-LogContent -Message "| Started on : $DateStarted by $currentUser|"
-Write-LogContent -Message "| PowerShell Version: $psVersion |"
-Write-LogContent -Message "| SharePoint Version: $spsVersion |"
+Write-LogContent -Message "| Automated Script - SPSWakeUp v$spsWakeupVersion"
+Write-LogContent -Message "| Started on : $DateStarted by $currentUser"
+Write-LogContent -Message "| PowerShell Version: $psVersion"
+Write-LogContent -Message "| SharePoint Version: $spsVersion"
 Write-LogContent -Message '-------------------------------------'
 
 # Check Permission Level
@@ -1395,11 +1395,29 @@ else
         Clear-SPSLog -path $scriptRootPath
 
         $DateEnded = Get-date
+        $totalUrls = $getSPSites.Count
+        $totalDuration = ($DateEnded - $DateStarted).TotalSeconds
+
         Write-LogContent -Message '-------------------------------------'
-        Write-LogContent -Message '| Automated Script - SPSWakeUp |'
-        Write-LogContent -Message "| Started on : $DateStarted |"
-        Write-LogContent -Message "| Completed on : $DateEnded |"
-        Write-LogContent -Message '-------------------------------------'
+        Write-LogContent -Message '| Automated Script - SPSWakeUp'
+        Write-LogContent -Message "| Started on : $DateStarted"
+        Write-LogContent -Message "| Completed on : $DateEnded"
+        Write-LogContent -Message "| SPSWakeUp waked up $totalUrls urls in $totalDuration seconds"
+        Write-LogContent -Message '--------------------------------------------------------------'
+        Write-LogContent -Message '| REPORTING: Memory Usage for each worker process (W3WP.EXE)'
+        Write-LogContent -Message '| Process Creation Date | Memory | Application Pool Name'
+        Write-LogContent -Message '--------------------------------------------------------------'
+
+        $w3wpProcess = Get-CimInstance Win32_Process -Filter "name = 'w3wp.exe'" | Select-Object WorkingSetSize, CommandLine, CreationDate | Sort-Object CommandLine
+        foreach($w3wpProc in $w3wpProcess)
+        {
+            $w3wpProcCmdLine = $w3wpProc.CommandLine.Replace('c:\windows\system32\inetsrv\w3wp.exe -ap "','')
+            $pos = $w3wpProcCmdLine.IndexOf('"')
+            $appPoolName = $w3wpProcCmdLine.Substring(0,$pos)
+            $w3wpMemoryUsage = [Math]::Round($w3wpProc.WorkingSetSize / 1MB)
+            Write-LogContent -Message "| $($w3wpProc.CreationDate) | $($w3wpMemoryUsage) MB | $($appPoolName)"
+        }
+        Write-LogContent -Message '--------------------------------------------------------------'
 
         Trap {Continue}
 

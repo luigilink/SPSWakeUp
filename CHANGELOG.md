@@ -10,6 +10,8 @@
 * Add functions:
   * Remove-SPSTask
 * Update Get-SPSSitesUrl function with Service Application Urls and SPWeb urls
+* Update README.md: remove Internet Explorer information
+* Add reporting: Memory Usage for each worker process
 
 ## 2.3.1
 
