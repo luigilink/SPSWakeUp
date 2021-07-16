@@ -1,5 +1,9 @@
 # Change log for SPSWakeUp
 
+## 2.5.0
+
+* Check if Web Application Url contains One of SPServer and remove it from HOSTS
+
 ## 2.4.0
 
 * Add Uninstall and OnlyRootWeb parameters

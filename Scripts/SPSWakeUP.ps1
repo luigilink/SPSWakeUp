@@ -41,8 +41,8 @@
     .NOTES
     FileName:	SPSWakeUP.ps1
     Author:		luigilink (Jean-Cyril DROUHIN)
-    Date:		February 20, 2020
-    Version:	2.4.0
+    Date:		July 16, 2021
+    Version:	2.5.0
     Licence:	MIT License
 
     .LINK
@@ -76,7 +76,7 @@ Clear-Host
 $Host.UI.RawUI.WindowTitle = "WarmUP script running on $env:COMPUTERNAME"
 
 # Define variable
-$spsWakeupVersion = '2.4.0'
+$spsWakeupVersion = '2.5.0'
 $currentUser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
 $scriptRootPath = Split-Path -parent $MyInvocation.MyCommand.Definition
 
@@ -767,7 +767,10 @@ function Get-SPSWebAppUrl
     foreach ($webapp in $webApps)
     {
         [void]$webAppURL.Add($webapp.GetResponseUri('Default').AbsoluteUri)
-        if (-not($webapp.GetResponseUri('Default').AbsoluteUri -match $env:COMPUTERNAME))
+        $spSrvIsInUri = Get-SPServer | Where-Object -FilterScript {
+            $webapp.GetResponseUri('Default').AbsoluteUri -match $_.Name
+        }
+        if ($null -eq $spSrvIsInUri)
         {
             Add-SPSHostEntry -Url $webapp.GetResponseUri('Default').AbsoluteUri
         }
