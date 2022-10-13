@@ -76,7 +76,7 @@ Clear-Host
 $Host.UI.RawUI.WindowTitle = "WarmUP script running on $env:COMPUTERNAME"
 
 # Define variable
-$spsWakeupVersion = '2.5.0'
+$spsWakeupVersion = '2.5.1'
 $currentUser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
 $scriptRootPath = Split-Path -parent $MyInvocation.MyCommand.Definition
 
@@ -1348,6 +1348,9 @@ else
         {
             if ($hostEntries)
             {
+                # Remove Duplicate Entries
+                $hostEntries = $hostEntries | Get-Unique
+                
                 # Disable LoopBack Check
                 Write-LogContent -Message '--------------------------------------------------------------'
                 Write-LogContent -Message 'Add Urls of All Web Applications or HSNC in BackConnectionHostNames regedit key ...'
