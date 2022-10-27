@@ -8,13 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add integration.yml file
+- Add RELEASE.md file
 
 ### Changed
 
 - README.md
-  - Add SharePoint 2019 support
+  - Add SharePoint Server Subscription Edition support
   - Remove SharePoint 2010 support
-  - Update minimum PowerShell version
+  - Update minimum PowerShell version supported
 
 ## [2.5.1] - 2022-10-14
 
