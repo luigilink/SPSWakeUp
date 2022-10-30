@@ -7,8 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add integration.yml file
-- Add RELEASE.md file
+- Add release.yml file
 
 ### Changed
 
