@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- SPSWakeUP.ps1
+  - Update SPSWakeUp Version
 - README.md
   - Add SharePoint Server Subscription Edition support
   - Remove SharePoint 2010 support
