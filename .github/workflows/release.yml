@@ -25,7 +25,7 @@ jobs:
       - name: Download Artifact
         uses: actions/download-artifact@v3
         with:
-          name: Scripts
+          name: SPSWakeUP-Artifact
       # Archive scripts folder
       - name: Archive Release
         uses: thedoctor0/zip-release@main
