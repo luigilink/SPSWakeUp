@@ -2,13 +2,11 @@
 
 name: SPSWakeUp CI Release
 
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the "dev" branch
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    # Sequence of patterns matched against refs/tags
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -27,6 +25,9 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
+      - name: Build project # This would actually build your project, using zip for an example artifact
+        run: |
+          zip --junk-paths my-artifact Scripts
       # Create Release
       - name: Create Release
         uses: actions/create-release@v1
