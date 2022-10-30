@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.5.1] - 2022-10-14
 
-### Removed
+### Changed
 
 - SPSWakeUP.ps1
   - Remove duplicate entries before writing in HOSTS File
@@ -37,9 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - SPSWakeUP.ps1
-    - Add Uninstall and OnlyRootWeb parameters
-    - Add Remove-SPSTask function
-    - Add reporting: Memory Usage for each worker process
+  - Add Uninstall and OnlyRootWeb parameters
+  - Add Remove-SPSTask function
+  - Add reporting: Memory Usage for each worker process
 
 ### Changed
 
@@ -169,7 +169,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Works with FBA if Windows authentication is enabled on the same web application
   - Use Internet Explorer to download JS, CSS and Pictures files
   - All site collection (HSNC include) for all web applications are included in warm-up
-  - Disable IE ESC, Disable LoopBackCheck : *Secure *or Less Secure
+  - Disable IE ESC, Disable LoopBackCheck : *Secure* or *Less Secure*,
   - Add Web application Urls in HOSTS file and in Internet Options Security,
   - Add User Account in User Policy for Each Web Application,
   - Clear Cache Internet Explorer.
