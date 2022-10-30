@@ -20,7 +20,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: ${{ github.ref }}-Scripts
-          path: Scripts/
+          path: Scripts
       # Create Release with tag version
       - name: Create Release
         id: create_release
