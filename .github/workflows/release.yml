@@ -10,14 +10,17 @@ on:
 
 jobs:
   build:
-    name: Upload Release Asset
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Build project # This would actually build your project, using zip for an example artifact
-        run: |
-          zip --junk-paths Scripts Scripts
+        # Archive scripts folder
+      - name: Archive Scripts
+        uses: thedoctor0/zip-release@main
+        with:
+          type: 'zip'
+          filename: 'scripts.zip'
+          path: Scripts
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
