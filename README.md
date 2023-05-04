@@ -10,7 +10,7 @@
 
 SPSWakeUp is a PowerShell script tool to warm up all site collection in your SharePoint environment.
 
-It's compatible with all supported versions for SharePoint OnPremises (2013 to Subscription Edition).
+It's compatible with all supported versions for SharePoint OnPremises (2016 to Subscription Edition).
 
 [Download the latest release, Click here!](https://github.com/luigilink/spswakeup/releases/latest)
 
@@ -30,8 +30,11 @@ This current version supports FBA and Windows Authentication (Claims, NTLM and K
 For more details of available features [Click here!](https://github.com/luigilink/spswakeup/wiki/Features)
 
 ## Requirements
+### Windows Management Framework 5.0
 
-The minimum PowerShell version required is 4.0, which ships in Windows Server 2012 R2 (or higher versions).
+Required because this module now implements class-based resources.
+Class-based resources can only work on computers with Windows
+Management Framework 5.0 or above.
 The preferred version is PowerShell 5.1 or higher, which ships with Windows 10 or Windows Server 2016.
 
 ## Changelog
