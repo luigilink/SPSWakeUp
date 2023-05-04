@@ -42,7 +42,7 @@
     FileName:	SPSWakeUP.ps1
     Author:		luigilink (Jean-Cyril DROUHIN)
     Date:		July 16, 2021
-    Version:	2.6.0
+    Version:	2.6.1
     Licence:	MIT License
 
     .LINK
@@ -76,7 +76,7 @@ Clear-Host
 $Host.UI.RawUI.WindowTitle = "WarmUP script running on $env:COMPUTERNAME"
 
 # Define variable
-$spsWakeupVersion = '2.6.0'
+$spsWakeupVersion = '2.6.1'
 $currentUser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
 $scriptRootPath = Split-Path -parent $MyInvocation.MyCommand.Definition
 
@@ -497,18 +497,7 @@ function Get-SPSThrottleLimit
         $cimInstanceSocket = $cimInstanceProc.count
         $numLogicalCpu = $cimInstanceProc[0].NumberOfLogicalProcessors * $cimInstanceSocket
 
-        if ($numLogicalCpu -le 2)
-        {
-            $NumThrottle = 2 * $numLogicalCpu
-        }
-        elseif ($numLogicalCpu -ge 8)
-        {
-            $NumThrottle = 10
-        }
-        else
-        {
-            $NumThrottle = 2 * $numLogicalCpu
-        }
+        $NumThrottle = @{ $true = 10; $false = 2 * $numLogicalCpu }[$numLogicalCpu -ge 8]
     }
     catch
     {
