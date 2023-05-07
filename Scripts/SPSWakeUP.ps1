@@ -436,23 +436,24 @@ function Get-SPSSitesUrl
             $_.IsAdministrationWebApplication
         }
         $siteADM = $webAppADM.Url
-        # Most useful administration pages
+        # Most useful administration pages and Quick launch top links
+        $urlsAdmin = @('Lists/HealthReports/AllItems.aspx',`
+                       '_admin/FarmServers.aspx',`
+                       '_admin/Server.aspx',`
+                       '_admin/WebApplicationList.aspx'`
+                       '_admin/ServiceApplications.aspx',`
+                       'applications.aspx',`
+                       'systemsettings.aspx',`
+                       'monitoring.aspx',`
+                       'backups.aspx',`
+                       'security.aspx',`
+                       'upgradeandmigration.aspx',`
+                       'apps.aspx',`
+                       'generalapplicationsettings.aspx')
         [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM))
-        [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM'Lists/HealthReports/AllItems.aspx'))
-        [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM'_admin/FarmServers.aspx'))
-        [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM'_admin/Server.aspx'))
-        [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM'_admin/WebApplicationList.aspx'))
-        [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM'_admin/ServiceApplications.aspx'))
-
-        # Quick launch top links
-        [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM'applications.aspx'))
-        [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM'systemsettings.aspx'))
-        [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM'monitoring.aspx'))
-        [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM'backups.aspx'))
-        [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM'security.aspx'))
-        [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM'upgradeandmigration.aspx'))
-        [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM'apps.aspx'))
-        [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM'generalapplicationsettings.aspx'))
+        foreach($urlAdmin in $urlsAdmin) {
+            [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url "$siteADM$urlAdmin"))
+        }
 
         # Get Service Application Urls
         $sa = Get-SPServiceApplication
