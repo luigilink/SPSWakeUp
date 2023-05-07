@@ -18,13 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
  - Replace Write-LogContent function with Write-Output CmdLet
  - BREAKING CHANGE: Remove functions :
   - Add-RASharePoint,
-  - Add-SystemWeb, 
+  - Add-SystemWeb,
   - Disable-IEESC,
   - Disable-IEFirstRun,
   - Backup-HostsFile,
-  - Restore-HostsFile
- - Update Disable-LoopbackCheck and Add-HostsEntry functions
- 
+  - Restore-HostsFile,
+  - Add-SPSSitesUrl,
+  - Get-SPSHSNCUrl
+ - Update Disable-LoopbackCheck, Add-HostsEntry, Get-SPSSitesUrl and Get-SPSWebAppUrl functions
+ - Remove unnecessary comments
+
 ## [2.6.1] - 2023-01-18
 
 ### Changed

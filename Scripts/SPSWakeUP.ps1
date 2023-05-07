@@ -79,7 +79,7 @@ $Host.UI.RawUI.WindowTitle = "WarmUP script running on $env:COMPUTERNAME"
 $spsWakeupVersion = '2.7.0'
 $currentUser      = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
 $scriptRootPath   = Split-Path -parent $MyInvocation.MyCommand.Definition
-$hostEntries      =  New-Object -TypeName System.Collections.Generic.List[string]
+$hostEntries      = New-Object -TypeName System.Collections.Generic.List[string]
 $hostsFile        = "$env:windir\System32\drivers\etc\HOSTS"
 $hostsFileCopy    = $hostsFile + '.' + (Get-Date -UFormat "%y%m%d%H%M%S").ToString() + '.copy'
 
@@ -109,21 +109,11 @@ if ($Install) {
     }
 }
 
-# ====================================================================================
-# INTERNAL FUNCTIONS
-# ====================================================================================
 #region logging and trap exception
 # ===================================================================================
 # Func: Write-LogException
 # Desc: write Exception in powershell session and in error file
 # ===================================================================================
-<#
-    .SYNOPSIS
-    Write Exception in powershell session and in error file
-
-    .PARAMETER Message
-    Object containing the exception of a try/catch sequence.
-#>
 function Write-LogException
 {
     [CmdletBinding()]
@@ -333,19 +323,19 @@ function Add-PSSharePoint
 # ===================================================================================
 function Get-SPSThrottleLimit
 {
-    [int]$NumThrottle = 8
     # Get Number Of Throttle Limit
-    try {
-        $cimInstanceProc = @(Get-CimInstance -ClassName Win32_Processor)
-        $cimInstanceSocket = $cimInstanceProc.count
-        $numLogicalCpu = $cimInstanceProc[0].NumberOfLogicalProcessors * $cimInstanceSocket
-
-        $NumThrottle = @{ $true = 10; $false = 2 * $numLogicalCpu }[$numLogicalCpu -ge 8]
+    process {
+        try {
+            $cimInstanceProc   = @(Get-CimInstance -ClassName Win32_Processor)
+            $cimInstanceSocket = $cimInstanceProc.count
+            $numLogicalCpu     = $cimInstanceProc[0].NumberOfLogicalProcessors * $cimInstanceSocket
+            $NumThrottle       = @{ $true = 10; $false = 2 * $numLogicalCpu }[$numLogicalCpu -ge 8]
+            return $NumThrottle
+        }
+        catch {
+            Write-Warning -Message $_
+        }
     }
-    catch {
-        Write-Warning -Message $_
-    }
-    return $NumThrottle
 }
 #endregion
 
@@ -356,45 +346,25 @@ function Get-SPSThrottleLimit
 # ===================================================================================
 function Get-SPSVersion
 {
-    # location in registry to get info about installed software
-    $regLoc = Get-ChildItem HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall
-    # Get SharePoint Products and language packs
-    $programs = $regLoc |  Where-Object -FilterScript {
-        $_.PsPath -like '*\Office*'
-    } | ForEach-Object -Process { Get-ItemProperty $_.PsPath }
-    # output the info about Products and Language Packs
-    $spsVersion = $programs | Where-Object -FilterScript {
-        $_.DisplayName -like '*SharePoint Server*'
+    process {
+        try {
+            # location in registry to get info about installed software
+            $regLoc = Get-ChildItem HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall
+            # Get SharePoint Products and language packs
+            $programs = $regLoc |  Where-Object -FilterScript {
+                $_.PsPath -like '*\Office*'
+            } | ForEach-Object -Process { Get-ItemProperty $_.PsPath }
+            # output the info about Products and Language Packs
+            $spsVersion = $programs | Where-Object -FilterScript {
+                $_.DisplayName -like '*SharePoint Server*'
+            }
+            # Return SharePoint version
+            $spsVersion.DisplayVersion
+        }
+        catch {
+            Write-Warning -Message $_
+        }
     }
-    # Return SharePoint version
-    $spsVersion.DisplayVersion
-}
-# ===================================================================================
-# Name: 		Add-SPSSitesUrl
-# Description:	Add Site Collection Url and FBA settings in PSObject
-# ===================================================================================
-function Add-SPSSitesUrl
-{
-    param
-    (
-        [Parameter(Mandatory=$true)]
-        [System.String]
-        $Url,
-
-        [Parameter(Mandatory=$false)]
-        [bool]
-        $Fba = $false,
-
-        [Parameter(Mandatory=$false)]
-        [bool]
-        $Win = $true
-    )
-
-    $pso = New-Object PSObject
-    $pso | Add-Member -Name Url -MemberType NoteProperty -Value $Url
-    $pso | Add-Member -Name FBA -MemberType NoteProperty -Value $Fba
-    $pso | Add-Member -Name Win -MemberType NoteProperty -Value $Win
-    $pso
 }
 # ===================================================================================
 # Name: 		Add-SPSHostEntry
@@ -419,28 +389,21 @@ function Add-SPSHostEntry
 # ===================================================================================
 function Get-SPSSitesUrl
 {
-    [CmdletBinding()]
-    [OutputType([System.Collections.ArrayList])]
-
-    $tbSitesURL = New-Object -TypeName System.Collections.ArrayList
-    $defaultUrlZone = [Microsoft.SharePoint.Administration.SPUrlZone]::Default
-    [bool]$fbaSParameter = $false
-    [bool]$winParameter = $true
-
-    try
-    {
-        $topologySvcUrl = 'http://localhost:32843/Topology/topology.svc'
-        [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $topologySvcUrl))
-
+    try {
+        #Initialize ArrayList Object
+        $tbSitesURL = New-Object -TypeName System.Collections.ArrayList
+        # Add Topology.svc in ArrayList Object
+        [void]$tbSitesURL.Add('http://localhost:32843/Topology/topology.svc')
+        # Get Central Administration Url and add it in ArrayList Object
         $webAppADM = Get-SPWebApplication -IncludeCentralAdministration | Where-Object -FilterScript {
             $_.IsAdministrationWebApplication
         }
-        $siteADM = $webAppADM.Url
-        # Most useful administration pages and Quick launch top links
+        [void]$tbSitesURL.Add("$($webAppADM.Url)")
+        # List of the most useful administration pages and Quick launch top links
         $urlsAdmin = @('Lists/HealthReports/AllItems.aspx',`
                        '_admin/FarmServers.aspx',`
                        '_admin/Server.aspx',`
-                       '_admin/WebApplicationList.aspx'`
+                       '_admin/WebApplicationList.aspx',`
                        '_admin/ServiceApplications.aspx',`
                        'applications.aspx',`
                        'systemsettings.aspx',`
@@ -450,152 +413,85 @@ function Get-SPSSitesUrl
                        'upgradeandmigration.aspx',`
                        'apps.aspx',`
                        'generalapplicationsettings.aspx')
-        [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteADM))
         foreach($urlAdmin in $urlsAdmin) {
-            [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url "$siteADM$urlAdmin"))
+            [void]$tbSitesURL.Add("$($webAppADM.Url)$($urlAdmin)")
         }
-
-        # Get Service Application Urls
+        # Get Service Application Urls and then in ArrayList Object
         $sa = Get-SPServiceApplication
         $linkUrls = $sa | ForEach-Object {$_.ManageLink.Url} | Select-Object -Unique
         foreach ($linkUrl in $linkUrls) {
             $siteADMSA = $linkUrl.TrimStart('/')
-            [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url "$siteADM$siteADMSA"))
+            [void]$tbSitesURL.Add("$($webAppADM.Url)$($siteADMSA)")
         }
-
         # Get Url of all site collection
-        #$WebSrv = [microsoft.sharepoint.administration.spwebservice]::ContentService
-        $webApps = Get-SPWebApplication
-
-        foreach ($webApp in $webApps)
-        {
-            $iisSettings = $webApp.GetIisSettingsWithFallback($defaultUrlZone)
-            $getClaimProviderForms = $iisSettings.ClaimsAuthenticationProviders | Where-Object -FilterScript {
-                $_.ClaimProviderName -eq 'Forms'
-            }
-            $getClaimProviderWindows = $iisSettings.ClaimsAuthenticationProviders | Where-Object -FilterScript {
-                $_.ClaimProviderName -eq 'AD'
-            }
-
-            if ($getClaimProviderForms)
-            {
-                $fbaSParameter = $true
-            }
-            else
-            {
-                $fbaSParameter=$false
-            }
-
-            if ($getClaimProviderWindows)
-            {
-                $winParameter = $true
-            }
-            else
-            {
-                $winParameter=$false
-            }
-
-            $sites = $webApp.sites
-            foreach ($site in $sites)
-            {
-                if ($OnlyRootWeb)
-                {
-                    if (($fbaSParameter -eq $true) -and ($winParameter -eq $true))
-                    {
-                        $siteUrl = $site.RootWeb.Url + '/_windows/default.aspx?ReturnUrl=/_layouts/15/Authenticate.aspx?Source=%2f'
+        $webApps = Get-SPWebApplication -ErrorAction SilentlyContinue
+        if ($null -ne $webApps) {
+            foreach ($webApp in $webApps) {
+                $sites = $webApp.sites
+                foreach ($site in $sites) {
+                    if ($OnlyRootWeb) {
+                        if ($site.RootWeb.Url -notmatch 'sitemaster-') {
+                            [void]$tbSitesURL.Add("$($site.RootWeb.Url)")
+                        }
                     }
-                    else
-                    {
-                        $siteUrl = $site.RootWeb.Url
+                    else {
+                        $webs = (Get-SPWeb -Site $site -Limit ALL)
+                        foreach ($web in $webs) {
+                            if ($web.Url -notmatch 'sitemaster-') {
+                                [void]$tbSitesURL.Add("$($web.Url)")
+                            }
+                        }
                     }
-                    if ($siteUrl -notmatch 'sitemaster-')
-                    {
-                        [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $siteUrl -FBA $fbaSParameter -Win $winParameter))
-                    }
+                    $site.Dispose()
                 }
-                else
-                {
-                    $webs = (Get-SPWeb -Site $site -Limit ALL)
-                    foreach ($web in $webs)
-                    {
-                        if (($fbaSParameter -eq $true) -and ($winParameter -eq $true))
-                        {
-                            $webUrl = $web.Url + '/_windows/default.aspx?ReturnUrl=/_layouts/15/Authenticate.aspx?Source=%2f'
-                        }
-                        else
-                        {
-                            $webUrl = $web.Url
-                        }
-                        if ($webUrl -notmatch 'sitemaster-')
-                        {
-                            [void]$tbSitesURL.Add((Add-SPSSitesUrl -Url $webUrl -FBA $fbaSParameter -Win $winParameter))
-                        }
-                    }
-                }
-                $site.Dispose()
             }
-
         }
+        return $tbSitesURL
     }
-    catch
-    {
+    catch {
         Write-LogException -Message $_
     }
-
-    $tbSitesURL
-}
-# ===================================================================================
-# Name: 		Get-SPSHSNCUrl
-# Description:	Get All Host Named Site Collection Url
-# ===================================================================================
-function Get-SPSHSNCUrl
-{
-    [CmdletBinding()]
-    [OutputType([System.Collections.ArrayList])]
-
-    $hsncURL = New-Object System.Collections.ArrayList
-    $webApps = Get-SPWebApplication
-
-    $sites = $webApps | ForEach-Object -Process {
-        $_.sites
-    }
-    $HSNCs = $sites | Where-Object -FilterScript {
-        $_.HostHeaderIsSiteName -eq $true
-    }
-
-    foreach ($HSNC in $HSNCs) {
-        if ($HSNC.Url -notmatch 'sitemaster-') {
-            [void]$hsncURL.Add($HSNC.Url)
-            Add-SPSHostEntry -Url $HSNC.Url
-        }
-        $HSNC.Dispose()
-    }
-
-    return $hsncURL
 }
 # ===================================================================================
 # Name: 		Get-SPSWebAppUrl
-# Description:	Get All Web Applications Url
+# Description:	Get All Web Applications and Host Named Site Collection Url
 # ===================================================================================
 function Get-SPSWebAppUrl
 {
-    [CmdletBinding()]
-    [OutputType([System.Collections.ArrayList])]
-
-    $webAppURL = New-Object -TypeName System.Collections.ArrayList
-    $webApps = Get-SPWebApplication
-
-    foreach ($webapp in $webApps) {
-        [void]$webAppURL.Add($webapp.GetResponseUri('Default').AbsoluteUri)
-        $spSrvIsInUri = Get-SPServer | Where-Object -FilterScript {
-            $webapp.GetResponseUri('Default').AbsoluteUri -match $_.Name
+    try {
+        #Initialize ArrayList Object
+        $webAppURL = New-Object -TypeName System.Collections.ArrayList
+        # Get SPwebApplication Object
+        $webApps = Get-SPWebApplication -ErrorAction SilentlyContinue
+        if ($null -ne $webApps) {
+            foreach ($webapp in $webApps) {
+                [void]$webAppURL.Add($webapp.GetResponseUri('Default').AbsoluteUri)
+                $spSrvIsInUri = Get-SPServer | Where-Object -FilterScript {
+                    $webapp.GetResponseUri('Default').AbsoluteUri -match $_.Name
+                }
+                if ($null -eq $spSrvIsInUri) {
+                    Add-SPSHostEntry -Url $webapp.GetResponseUri('Default').AbsoluteUri
+                }
+            }
+            $sites = $webApps | ForEach-Object -Process {
+                $_.sites
+            }
+            $HSNCs = $sites | Where-Object -FilterScript {
+                $_.HostHeaderIsSiteName -eq $true
+            }
+            foreach ($HSNC in $HSNCs) {
+                if ($HSNC.Url -notmatch 'sitemaster-') {
+                    [void]$webAppURL.Add($HSNC.Url)
+                    Add-SPSHostEntry -Url $HSNC.Url
+                }
+                $HSNC.Dispose()
+            }
         }
-        if ($null -eq $spSrvIsInUri) {
-            Add-SPSHostEntry -Url $webapp.GetResponseUri('Default').AbsoluteUri
-        }
+        return $webAppURL
     }
-
-    return $webAppURL
+    catch {
+        Write-Warning -Message $_
+    }
 }
 #endregion
 
@@ -978,10 +874,6 @@ else {
         $getSPWebApps = Get-SPSWebAppUrl
 
         Write-Output '--------------------------------------------------------------'
-        Write-Output 'Get URLs of All Host Named Site Collection ...'
-        $getSPSiteColN = Get-SPSHSNCUrl
-
-        Write-Output '--------------------------------------------------------------'
         Write-Output 'Get URLs of All Site Collection ...'
         $getSPSites = Get-SPSSitesUrl
         if ($null -ne $getSPWebApps -and $null -ne $getSPSites) {
@@ -990,8 +882,6 @@ else {
                 $hostEntries = $hostEntries | Get-Unique
 
                 # Disable LoopBack Check
-                Write-Output '--------------------------------------------------------------'
-                Write-Output 'Add Urls of All Web Applications or HSNC in BackConnectionHostNames regedit key ...'
                 Disable-LoopbackCheck
 
                 # Make backup copy of the Hosts file with today's date Add Web Application and Host Named Site Collection Urls in HOSTS system File
