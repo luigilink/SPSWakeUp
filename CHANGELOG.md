@@ -17,7 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - BREAKING CHANGE: Remove logging functions and logging variables
   - Replace Write-LogContent function with Write-Output CmdLet
   - BREAKING CHANGE: Remove functions :
-    - Add-RASharePoint, Add-SystemWeb, Disable-IEESC, Disable-IEFirstRun, Backup-HostsFile, Restore-HostsFile, Add-SPSSitesUrl, Get-SPSHSNCUrl
+    - Add-RASharePoint, Add-SystemWeb, Disable-IEESC, Disable-IEFirstRun, 
+    - Backup-HostsFile, Restore-HostsFile, Add-SPSSitesUrl, Get-SPSHSNCUrl
   - Update Disable-LoopbackCheck, Add-HostsEntry, Get-SPSSitesUrl and Get-SPSWebAppUrl functions
   - Remove unnecessary comments
   - Add Get-SPSAdminUrl function to improve central admin urls warmup
