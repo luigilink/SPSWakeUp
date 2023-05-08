@@ -8,26 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - README.md
- - BREAKING CHANGE: Windows Management Framework 5.0 is required
- - Remove SharePoint Server 2013 from supported versions
+  - BREAKING CHANGE: Windows Management Framework 5.0 is required
+  - Remove SharePoint Server 2013 from supported versions
 - Remove azure-pipelines.yml and SPSWakeUp.psd1 files
 - SPSWakeUP.ps1
- - BREAKING CHANGE: Remove InputFile and OnlyRootWeb switch parameters and update examples
- - Add Transcript boolean parameter and update examples
- - BREAKING CHANGE: Remove logging functions and logging variables
- - Replace Write-LogContent function with Write-Output CmdLet
- - BREAKING CHANGE: Remove functions :
-  - Add-RASharePoint,
-  - Add-SystemWeb,
-  - Disable-IEESC,
-  - Disable-IEFirstRun,
-  - Backup-HostsFile,
-  - Restore-HostsFile,
-  - Add-SPSSitesUrl,
-  - Get-SPSHSNCUrl
- - Update Disable-LoopbackCheck, Add-HostsEntry, Get-SPSSitesUrl and Get-SPSWebAppUrl functions
- - Remove unnecessary comments
- - Add Get-SPSAdminUrl function to improve central admin urls warmup
+  - BREAKING CHANGE: Remove InputFile and OnlyRootWeb switch parameters and update examples
+  - Add Transcript boolean parameter and update examples
+  - BREAKING CHANGE: Remove logging functions and logging variables
+  - Replace Write-LogContent function with Write-Output CmdLet
+  - BREAKING CHANGE: Remove functions :
+    - Add-RASharePoint, Add-SystemWeb, Disable-IEESC, Disable-IEFirstRun, Backup-HostsFile, Restore-HostsFile, Add-SPSSitesUrl, Get-SPSHSNCUrl
+  - Update Disable-LoopbackCheck, Add-HostsEntry, Get-SPSSitesUrl and Get-SPSWebAppUrl functions
+  - Remove unnecessary comments
+  - Add Get-SPSAdminUrl function to improve central admin urls warmup
 
 ## [2.6.1] - 2023-01-18
 
