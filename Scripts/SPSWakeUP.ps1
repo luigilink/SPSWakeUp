@@ -22,10 +22,14 @@
     Use the switch Uninstall parameter if you want to remove the warmup script from taskscheduler
     PS D:\> E:\SCRIPT\SPSWakeUP.ps1 -Uninstall
 
-    .PARAMETER OnlyRootWeb
-    Use the switch OnlyRootWeb parameter if you don't want to warmup the SPWebs of each site collection
+    .PARAMETER AllSites
+    Use the boolean AllSites parameter if you want to warmup the SPWebs of each site collection
     and only warmup the root web of the site collection.
-    PS D:\> E:\SCRIPT\SPSWakeUP.ps1 -OnlyRootWeb
+    PS D:\> E:\SCRIPT\SPSWakeUP.ps1 -AllSites:$True
+
+    .PARAMETER AdminSites
+    Use the boolean AdminSites parameter if you want to warmup the Central Administration Site collection
+    PS D:\> E:\SCRIPT\SPSWakeUP.ps1 -AdminSites:$True
 
     .PARAMETER Transcript
     Use the boolean Transcript parameter if you want to start Transcrit PowerShell Feature.
@@ -34,14 +38,15 @@
     .EXAMPLE
     SPSWakeUP.ps1 -Install -InstallAccount (Get-Credential)
     SPSWakeUP.ps1 -Uninstall
-    SPSWakeUP.ps1 -OnlyRootWeb
+    SPSWakeUP.ps1 -AllSites:$True
+    SPSWakeUP.ps1 -AdminSites:$True
     SPSWakeUP.ps1 -Transcript:$True
 
     .NOTES
     FileName:	SPSWakeUP.ps1
     Authors:	luigilink (Jean-Cyril DROUHIN)
                 Nutsoft (Des Finkenzeller)
-    Date:		May 05, 2023
+    Date:		May 08, 2023
     Version:	2.7.0
     Licence:	MIT License
 
@@ -64,10 +69,14 @@ param
     $Uninstall,
 
     [Parameter(Position = 4)]
-    [switch]
-    $OnlyRootWeb,
+    [System.Boolean]
+    $AllSites = $true,
 
     [Parameter(Position = 5)]
+    [System.Boolean]
+    $AdminSites = $true,
+
+    [Parameter(Position = 6)]
     [System.Boolean]
     $Transcript = $false
 )
@@ -83,13 +92,13 @@ $hostEntries      = New-Object -TypeName System.Collections.Generic.List[string]
 $hostsFile        = "$env:windir\System32\drivers\etc\HOSTS"
 $hostsFileCopy    = $hostsFile + '.' + (Get-Date -UFormat "%y%m%d%H%M%S").ToString() + '.copy'
 
-#Start Transcript parameter is equal to True
+# Start Transcript parameter is equal to True
 if ($Transcript) {
     $pathLogFile  = Join-Path -Path $scriptRootPath -ChildPath ('SPSWakeUP_script_' + (Get-Date -Format yyyy-MM-dd_H-mm) + '.log')
     Start-Transcript -Path $pathLogFile -IncludeInvocationHeader
 }
 
-#Check UserName and Password if Install parameter is used
+# Check UserName and Password if Install parameter is used
 if ($Install) {
     if ($null -eq $InstallAccount) {
         Write-Warning -Message ('SPSWakeUp: Install parameter is set. Please set also InstallAccount ' + `
@@ -125,12 +134,9 @@ function Write-LogException
         $Message
     )
 
-    $pathErrLog   = Join-Path -Path $scriptRootPath -ChildPath (((Get-Date).Ticks.ToString()) + '_errlog.xml')
-    $messageEvent = $Message.Exception.Message + "`r`n" + 'For more informations, see errlog.xml file:' + $pathErrLog
-
+    $pathErrLog = Join-Path -Path $scriptRootPath -ChildPath (((Get-Date).Ticks.ToString()) + '_errlog.xml')
     Write-Warning -Message $Message.Exception.Message
     Export-Clixml -Path $pathErrLog -InputObject $Message -Depth 3
-    Write-EventLog -LogName Application -Source 'SPSWakeUp' -EntryType Warning -EventId 7701 -Message $messageEvent
 }
 # ===================================================================================
 # Func: Clear-SPSLog
@@ -375,6 +381,8 @@ function Add-SPSHostEntry
     param
     (
         [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [System.String]
         $url
     )
 
@@ -384,21 +392,19 @@ function Add-SPSHostEntry
     [void]$hostEntries.Add($hostNameEntry)
 }
 # ===================================================================================
-# Name: 		Get-SPSSitesUrl
-# Description:	Get All Site Collections Url
+# Name: 		Get-SPSAdminUrl
+# Description:	Get All Url of Central Admin
 # ===================================================================================
-function Get-SPSSitesUrl
+function Get-SPSAdminUrl
 {
     try {
-        #Initialize ArrayList Object
-        $tbSitesURL = New-Object -TypeName System.Collections.ArrayList
-        # Add Topology.svc in ArrayList Object
-        [void]$tbSitesURL.Add('http://localhost:32843/Topology/topology.svc')
+        # Initialize ArrayList Object
+        $tbCASitesURL = New-Object -TypeName System.Collections.ArrayList
         # Get Central Administration Url and add it in ArrayList Object
         $webAppADM = Get-SPWebApplication -IncludeCentralAdministration | Where-Object -FilterScript {
             $_.IsAdministrationWebApplication
         }
-        [void]$tbSitesURL.Add("$($webAppADM.Url)")
+        [void]$tbCASitesURL.Add("$($webAppADM.Url)")
         # List of the most useful administration pages and Quick launch top links
         $urlsAdmin = @('Lists/HealthReports/AllItems.aspx',`
                        '_admin/FarmServers.aspx',`
@@ -414,27 +420,37 @@ function Get-SPSSitesUrl
                        'apps.aspx',`
                        'generalapplicationsettings.aspx')
         foreach($urlAdmin in $urlsAdmin) {
-            [void]$tbSitesURL.Add("$($webAppADM.Url)$($urlAdmin)")
+            [void]$tbCASitesURL.Add("$($webAppADM.Url)$($urlAdmin)")
         }
         # Get Service Application Urls and then in ArrayList Object
         $sa = Get-SPServiceApplication
         $linkUrls = $sa | ForEach-Object {$_.ManageLink.Url} | Select-Object -Unique
         foreach ($linkUrl in $linkUrls) {
             $siteADMSA = $linkUrl.TrimStart('/')
-            [void]$tbSitesURL.Add("$($webAppADM.Url)$($siteADMSA)")
+            [void]$tbCASitesURL.Add("$($webAppADM.Url)$($siteADMSA)")
         }
+        return $tbCASitesURL
+    }
+    catch {
+        Write-LogException -Message $_
+    }
+}
+# ===================================================================================
+# Name: 		Get-SPSSitesUrl
+# Description:	Get All Site Collections Url
+# ===================================================================================
+function Get-SPSSitesUrl
+{
+    try {
+        # Initialize ArrayList Object
+        $tbSitesURL = New-Object -TypeName System.Collections.ArrayList
         # Get Url of all site collection
         $webApps = Get-SPWebApplication -ErrorAction SilentlyContinue
         if ($null -ne $webApps) {
             foreach ($webApp in $webApps) {
                 $sites = $webApp.sites
                 foreach ($site in $sites) {
-                    if ($OnlyRootWeb) {
-                        if ($site.RootWeb.Url -notmatch 'sitemaster-') {
-                            [void]$tbSitesURL.Add("$($site.RootWeb.Url)")
-                        }
-                    }
-                    else {
+                    if ($AllSites) {
                         $webs = (Get-SPWeb -Site $site -Limit ALL)
                         foreach ($web in $webs) {
                             if ($web.Url -notmatch 'sitemaster-') {
@@ -442,10 +458,17 @@ function Get-SPSSitesUrl
                             }
                         }
                     }
+                    else {
+                        if ($site.RootWeb.Url -notmatch 'sitemaster-') {
+                            [void]$tbSitesURL.Add("$($site.RootWeb.Url)")
+                        }
+                    }
                     $site.Dispose()
                 }
             }
         }
+        # Add Topology.svc in ArrayList Object
+        [void]$tbSitesURL.Add('http://localhost:32843/Topology/topology.svc')
         return $tbSitesURL
     }
     catch {
@@ -459,7 +482,7 @@ function Get-SPSSitesUrl
 function Get-SPSWebAppUrl
 {
     try {
-        #Initialize ArrayList Object
+        # Initialize ArrayList Object
         $webAppURL = New-Object -TypeName System.Collections.ArrayList
         # Get SPwebApplication Object
         $webApps = Get-SPWebApplication -ErrorAction SilentlyContinue
@@ -505,134 +528,111 @@ function Invoke-SPSWebRequest
     param
     (
         [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [System.String[]]
         $Urls,
 
         [Parameter(Mandatory=$true)]
         $throttleLimit
     )
 
-    # Get UserAgent from current OS
-    if ([string]::IsNullOrEmpty($userAgent))
-    {
-        $userAgent = [Microsoft.PowerShell.Commands.PSUserAgent]::InternetExplorer
-    }
-
-    $iss = [system.management.automation.runspaces.initialsessionstate]::CreateDefault()
-    $Pool = [runspacefactory]::CreateRunspacePool(1, $throttleLimit, $iss, $Host)
-    $Pool.Open()
-
     $ScriptBlock =
     {
         param
         (
-            [Parameter(Mandatory=$true)]$url,
-            [Parameter(Mandatory=$false)]$useragent
+            [Parameter(Mandatory=$true)]
+            [ValidateNotNullOrEmpty()]
+            [System.String]
+            $Uri,
+
+            [Parameter()]
+            $Useragent = [Microsoft.PowerShell.Commands.PSUserAgent]::Chrome,
+
+            [Parameter()]
+            $SessionWeb
         )
 
-        Process
-        {
-            function Get-GenericWebRequest()
-            {
-                param
-                (
-                    [Parameter(Mandatory=$true)]$URL,
-                    [Parameter(Mandatory=$false)]$AllowAutoRedirect = $true
-                )
-                Process
-                {
-                    $GenericWebRequest = [System.Net.HttpWebRequest][System.Net.WebRequest]::Create($URL)
-                    $GenericWebRequest.UseDefaultCredentials = $true
-                    $GenericWebRequest.Method = 'GET'
-                    $GenericWebRequest.UserAgent = $useragent
-                    $GenericWebRequest.Accept = 'text/html'
-                    $GenericWebRequest.Timeout = 80000
-                    $GenericWebRequest.AllowAutoRedirect = $AllowAutoRedirect
-                    if (((Get-Host).Version.Major) -gt 2){$GenericWebRequest.ServerCertificateValidationCallback = { $true }}
-                    $GenericWebRequest
+        Process {
+            try {
+                $startProcess = Get-Date
+                if ($null -ne $sessionWeb) {
+                    $webResponse = Invoke-WebRequest -Uri $uri `
+                                                     -WebSession $sessionWeb `
+                                                     -TimeoutSec 90 `
+                                                     -UserAgent $useragent `
+                                                     -UseBasicParsing
                 }
+                else {
+                    $webResponse = Invoke-WebRequest -Uri $uri `
+                                                     -UseDefaultCredentials `
+                                                     -TimeoutSec 90 `
+                                                     -UserAgent $useragent `
+                                                     -UseBasicParsing
+                }
+                $timeExec = '{0:N2}' -f (((Get-Date) - $startProcess).TotalSeconds)
+                $Response = "$([System.int32]$webResponse.StatusCode) - $($webResponse.StatusDescription)"
             }
-
-            $TimeStart = Get-Date;
-            $fedAuthwebrequest = Get-GenericWebRequest -URL $url -AllowAutoRedirect $false;
-
-            try
-            {
-                # Get the response of $WebRequestObject
-                $fedAuthwebresponse = [System.Net.HttpWebResponse] $fedAuthwebrequest.GetResponse()
-                $fedAuthCookie = $fedAuthwebresponse.Headers['Set-Cookie'];
-
-                $httpwebrequest = Get-GenericWebRequest -URL $Url -AllowAutoRedirect $true;
-                $httpwebrequest.Headers.Add('Cookie', "$fedAuthCookie");
-
-                $ResponseObject = [System.Net.HttpWebResponse] $httpwebrequest.GetResponse()
-                $TimeStop = Get-Date
-                $TimeExec = ($TimeStop - $TimeStart).TotalSeconds
-                $TimeExec = '{0:N2}' -f $TimeExec
-                $Response = "$([System.int32]$ResponseObject.StatusCode) - $($ResponseObject.StatusCode)"
-
-            }
-            catch [Net.WebException]
-            {
+            catch {
                 $Response = $_.Exception.Message
             }
-            finally
-            {
-                if ($ResponseObject)
-                {
-                    $ResponseObject.Close()
-                    Remove-Variable ResponseObject
+            finally {
+                if ($webResponse) {
+                    $webResponse.Close()
+                    Remove-Variable webResponse
                 }
             }
             $RunResult = New-Object PSObject
-            $RunResult | Add-Member -MemberType NoteProperty -Name Url -Value $url
+            $RunResult | Add-Member -MemberType NoteProperty -Name Url -Value $uri
             $RunResult | Add-Member -MemberType NoteProperty -Name 'Time(s)' -Value $TimeExec
             $RunResult | Add-Member -MemberType NoteProperty -Name Status -Value $Response
-
             $RunResult
         }
     }
 
-    try
-    {
+    try {
+        # Initialize variables and runpsace for Multi-Threading Request
+        $psUserAgent = [Microsoft.PowerShell.Commands.PSUserAgent]::Chrome
+        $Jobs        = @()
+        $iss         = [system.management.automation.runspaces.initialsessionstate]::CreateDefault()
+        $Pool        = [runspacefactory]::CreateRunspacePool(1, $throttleLimit, $iss, $Host)
+        $Pool.Open()
 
-       $Jobs = @()
-       foreach ($Url in $Urls)
-       {
-            $Job = [powershell]::Create().AddScript($ScriptBlock).AddParameter('URL',$Url.Url).AddParameter('UserAgent',$userAgent)
+        # Initialize WebSession from First SPWebApplication object
+        $webApp     = Get-SpWebApplication | Select-Object -first 1
+        $authentUrl = ("$($webapp.GetResponseUri('Default').AbsoluteUri)" + '_windows/default.aspx?ReturnUrl=/_layouts/15/Authenticate.aspx?Source=%2f')
+        Write-Output "Getting webSession by opening $($authentUrl) with Invoke-WebRequest"
+        Invoke-WebRequest -Uri $authentUrl `
+                          -SessionVariable webSession `
+                          -UseDefaultCredentials `
+                          -UseBasicParsing `
+                          -TimeoutSec 90 `
+                          -UserAgent $psUserAgent
+        foreach ($Url in $Urls) {
+            $Job = [powershell]::Create().AddScript($ScriptBlock).AddParameter('Uri', $Url).AddParameter('UserAgent', $psUserAgent).AddParameter('SessionWeb', $webSession)
             $Job.RunspacePool = $Pool
             $Jobs += New-Object PSObject -Property @{
-                Url = $Url.Url
-                Pipe = $Job
+                Url    = $Url
+                Pipe   = $Job
                 Result = $Job.BeginInvoke()
             }
-       }
+        }
 
-        While ($Jobs.Result.IsCompleted -contains $false)
-        {
-            if ($i -lt 100)
-            {
-                $i = $i+1
-            }
-
-           Write-Progress -Activity 'Opening All sites Urls with Web Request' -Status 'Please Wait...' -Percentcomplete ($i)
-           Start-Sleep -S 1
+        While ($Jobs.Result.IsCompleted -contains $false) {
+            Start-Sleep -S 1
         }
 
         $Results = @()
-        foreach ($Job in $Jobs)
-        {
+        foreach ($Job in $Jobs) {
             $Results += $Job.Pipe.EndInvoke($Job.Result)
         }
 
     }
-    catch
-    {
+    catch {
         Write-Output 'An error occurred invoking multi-threading function'
         Write-LogException -Message $_
     }
 
-    Finally
-    {
+    Finally {
         $Pool.Dispose()
     }
     $Results
@@ -868,6 +868,33 @@ else {
             }
         }
 
+        # Invoke-WebRequest on Central Admin if AdminSites parameter equal to True
+        if ($AdminSites) {
+            $spCASvcInstance = $currentSPServer.ServiceInstances | Where-Object -FilterScript { $_.TypeName -eq 'Central Administration' }
+            if ($spCASvcInstance.Status -eq 'Online') {
+                Write-Output '--------------------------------------------------------------'
+                Write-Output 'Opening All Central Admin Urls with Invoke-WebRequest, Please Wait...'
+                $getSPADMSites = Get-SPSAdminUrl
+                foreach ($spADMUrl in $getSPADMSites) {
+                    try {
+                        $startInvoke = Get-Date
+                        $webResponse = Invoke-WebRequest -Uri $spADMUrl -UseDefaultCredentials -TimeoutSec 90 -UseBasicParsing
+                        $TimeExec = '{0:N2}' -f  (((Get-Date) - $startInvoke).TotalSeconds)
+                        Write-Output '-----------------------------------'
+                        Write-Output "| Url    : $spADMUrl"
+                        Write-Output "| Time   : $TimeExec"
+                        Write-Output "| Status : $($webResponse.StatusCode) - $($webResponse.StatusDescription)"
+                    }
+                    catch {
+                        Write-LogException -Message $_
+                    }
+                }
+            }
+            else {
+                Write-Warning -Message "No Central Admin Service Instance running on $env:COMPUTERNAME"
+            }
+        }
+
         # Get All Web Applications Urls, Host Named Site Collection and Site Collections
         Write-Output '--------------------------------------------------------------'
         Write-Output 'Get URLs of All Web Applications ...'
@@ -902,20 +929,18 @@ else {
                 }
             }
 
-            # Request Url with System.Net.WebClient Object for All Site Collections Urls
+            # Request Url with Invoke-WebRequest CmdLet for All Urls
             Write-Output '--------------------------------------------------------------'
-            Write-Output 'Opening All sites Urls with Web Request Object, Please Wait...'
+            Write-Output 'Opening All sites Urls with Invoke-WebRequest, Please Wait...'
             $InvokeResults = Invoke-SPSWebRequest -Urls $getSPSites -throttleLimit (Get-SPSThrottleLimit)
-
             # Show the results
             foreach ($InvokeResult in $InvokeResults) {
-                $resultUrl = $InvokeResult.Url
-                $resultTime = $InvokeResult.'Time(s)'
-                $resultStatus = $InvokeResult.Status
-                Write-Output '-----------------------------------'
-                Write-Output "| Url    : $resultUrl"
-                Write-Output "| Time   : $resultTime seconds"
-                Write-Output "| Status : $resultStatus"
+                if ($null -ne $InvokeResult.Url) {
+                    Write-Output '-----------------------------------'
+                    Write-Output "| Url    : $($InvokeResult.Url)"
+                    Write-Output "| Time   : $($InvokeResult.'Time(s)') seconds"
+                    Write-Output "| Status : $($InvokeResult.Status)"
+                }
             }
         }
 
@@ -949,7 +974,7 @@ else {
         Clear-HostsFileCopy -hostsFilePath $hostsFile
         # Clean the folder of log files
         Clear-SPSLog -path $scriptRootPath
-        #Stop Transcript parameter is equal to True
+        # Stop Transcript parameter is equal to True
         if ($Transcript) {
             $pathLogFile = Join-Path -Path $scriptRootPath -ChildPath ('SPSWakeUP_script_' + (Get-Date -Format yyyy-MM-dd_H-mm) + '.log')
             Stop-Transcript
