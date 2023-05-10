@@ -451,10 +451,12 @@ function Get-SPSSitesUrl
                 $sites = $webApp.sites
                 foreach ($site in $sites) {
                     if ($AllSites) {
-                        $webs = (Get-SPWeb -Site $site -Limit ALL)
-                        foreach ($web in $webs) {
-                            if ($web.Url -notmatch 'sitemaster-') {
-                                [void]$tbSitesURL.Add("$($web.Url)")
+                        $webs = (Get-SPWeb -Site $site -Limit ALL -ErrorAction SilentlyContinue)
+                        if ($null -ne $webs) {
+                            foreach ($web in $webs) {
+                                if ($web.Url -notmatch 'sitemaster-') {
+                                    [void]$tbSitesURL.Add("$($web.Url)")
+                                }
                             }
                         }
                     }
