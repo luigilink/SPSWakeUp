@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - SPSWakeUP.ps1
   - Add ErrorAction parameter for SPWeb CmdLet
+- release.yml
+  - Use softprops/action-gh-release@v1 action for release step
+  - Add github.ref for release name
 
 ## [2.7.0] - 2023-05-08
 
