@@ -47,7 +47,7 @@
     Authors:	luigilink (Jean-Cyril DROUHIN)
                 Nutsoft (Des Finkenzeller)
     Date:		May 08, 2023
-    Version:	2.7.0
+    Version:	2.7.1
     Licence:	MIT License
 
     .LINK
@@ -85,7 +85,7 @@ Clear-Host
 $Host.UI.RawUI.WindowTitle = "WarmUP script running on $env:COMPUTERNAME"
 
 # Define variable
-$spsWakeupVersion = '2.7.0'
+$spsWakeupVersion = '2.7.1'
 $currentUser      = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
 $scriptRootPath   = Split-Path -parent $MyInvocation.MyCommand.Definition
 $hostEntries      = New-Object -TypeName System.Collections.Generic.List[string]
