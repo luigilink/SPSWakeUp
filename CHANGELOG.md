@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add github.ref for release name
   - Remove actions/upload-artifact@v3
 
+### Added
+
+  - Add RELEASE-NOTES.md file
+
 ## [2.7.0] - 2023-05-08
 
 ### Changed
