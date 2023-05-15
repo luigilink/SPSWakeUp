@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - release.yml
   - Use softprops/action-gh-release@v1 action for release step
   - Add github.ref for release name
+  - Remove actions/upload-artifact@v3
 
 ## [2.7.0] - 2023-05-08
 

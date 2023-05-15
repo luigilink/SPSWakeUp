@@ -16,13 +16,6 @@ jobs:
       - name: Checkout code
         id: checkout_code
         uses: actions/checkout@v3
-      # Upload Artifact
-      - name: Upload Artifact
-        id: upload_artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: SPSWakeUP-${{ github.ref }}
-          path: Scripts
       # Create Release with tag version
       - name: Create GitHub Release
         id: create_release
