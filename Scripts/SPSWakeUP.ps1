@@ -46,8 +46,8 @@
     FileName:	SPSWakeUP.ps1
     Authors:	luigilink (Jean-Cyril DROUHIN)
                 Nutsoft (Des Finkenzeller)
-    Date:		May 08, 2023
-    Version:	2.7.1
+    Date:		June 15, 2023
+    Version:	2.7.2
     Licence:	MIT License
 
     .LINK
@@ -85,7 +85,7 @@ Clear-Host
 $Host.UI.RawUI.WindowTitle = "WarmUP script running on $env:COMPUTERNAME"
 
 # Define variable
-$spsWakeupVersion = '2.7.1'
+$spsWakeupVersion = '2.7.2'
 $currentUser      = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
 $scriptRootPath   = Split-Path -parent $MyInvocation.MyCommand.Definition
 $hostEntries      = New-Object -TypeName System.Collections.Generic.List[string]
@@ -695,56 +695,6 @@ function Clear-HostsFileCopy
         }
     }
 }
-# ====================================================================================
-# Func: Add-HostsEntry
-# Desc: This writes URLs to the server's local hosts file and points them to the server itself
-# ====================================================================================
-function Add-HostsEntry
-{
-    param
-    (
-        [Parameter(Mandatory=$true)]
-        [ValidateNotNullOrEmpty()]
-        [System.String[]]
-        $hostNameList
-    )
-
-    if ($null -ne $hostNameList) {
-        $hostsContentFile =  New-Object System.Collections.Generic.List[string]
-        $hostIPV4Addr     = '127.0.0.1'
-        $hostsContentFile.Add("
-# Copyright (c) 1993-2009 Microsoft Corp.
-#
-# This is a sample HOSTS file used by Microsoft TCP/IP for Windows.
-#
-# This file contains the mappings of IP addresses to host names. Each
-# entry should be kept on an individual line. The IP address should
-# be placed in the first column followed by the corresponding host name.
-# The IP address and the host name should be separated by at least one
-# space.
-#
-# Additionally, comments (such as these) may be inserted on individual
-# lines or following the machine name denoted by a '#' symbol.
-#
-# For example:
-#
-#      102.54.94.97     rhino.acme.com          # source server
-#       38.25.63.10     x.acme.com              # x client host
-")
-        $hostsContentFile.Add("127.0.0.1 `t crl.microsoft.com")
-        foreach ($hostname in $hostNameList) {
-            # Remove http or https information to keep only HostName or FQDN
-            if ($hostname.Contains(':')) {
-                Write-Warning -Message "$hostname cannot be added in HOSTS File, only web applications with 80 or 443 port are added."
-            }
-            else {
-                $hostsContentFile.Add("$hostIPV4Addr `t $hostname")
-            }
-        }
-        # Save the HOSTS system File
-        Out-File $hostsfile -InputObject $hostsContentFile
-    }
-}
 # ===================================================================================
 # Func: Add-SPSUserPolicy
 # Desc: Applies Read Access to the specified accounts for a web application
@@ -909,28 +859,31 @@ else {
             if ($hostEntries) {
                 # Remove Duplicate Entries
                 $hostEntries = $hostEntries | Get-Unique
-
-                # Disable LoopBack Check
-                Disable-LoopbackCheck
-
+                # Initialize variables
+                $hostFileNeedsBackup = $true
+                $hostIPV4Addr        = '127.0.0.1'
                 # Make backup copy of the Hosts file with today's date Add Web Application and Host Named Site Collection Urls in HOSTS system File
                 Write-Output '--------------------------------------------------------------'
                 Write-Output 'Add Urls of All Web Applications or HSNC in HOSTS File ...'
-
                 foreach ($hostEntry in $hostEntries) {
                     $hostEntryIsPresent = Select-String -Path $hostsFile -Pattern $hostEntry
-                    if ($null -eq $hostEntryIsPresent) { $hostFileNeedsUpdate = $true }
-                }
-                if ($hostFileNeedsUpdate) {
-                    Write-Verbose -Message "Backing up $hostsFile file to: $hostsFileCopy"
-                    Copy-Item -Path $hostsFile -Destination $hostsFileCopy -Force
-                    Add-HostsEntry -hostNameList $hostEntries
-                }
-                else {
-                    Write-Verbose -Message 'HOSTS File already contains Urls of All Web Applications or HSNC- skipping.'
+                    if ($null -eq $hostEntryIsPresent) {
+                        if ($hostFileNeedsBackup) {
+                            Write-Verbose -Message "Backing up $hostsFile file to: $hostsFileCopy"
+                            Copy-Item -Path $hostsFile -Destination $hostsFileCopy -Force
+                            $hostFileNeedsBackup = $false
+                        }
+                        # Remove http or https information to keep only HostName or FQDN
+                        if ($hostEntry.Contains(':')) {
+                            Write-Warning -Message "$hostEntry cannot be added in HOSTS File, only web applications with 80 or 443 port are added."
+                        }
+                        else {
+                            Write-Output "Adding $($hostEntry) in HOSTS file"
+                            Add-Content -Path $hostsFile -value "$hostIPV4Addr `t $hostEntry"
+                        }
+                    }
                 }
             }
-
             # Request Url with Invoke-WebRequest CmdLet for All Urls
             Write-Output '--------------------------------------------------------------'
             Write-Output 'Opening All sites Urls with Invoke-WebRequest, Please Wait...'
