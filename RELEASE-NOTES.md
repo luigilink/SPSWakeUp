@@ -1,19 +1,12 @@
 # SPSWakeUp - Release Notes
 
-## [2.7.1] - 2023-05-10
+## [2.7.2] - 2023-06-15
 
 ### Changed
 
 - SPSWakeUP.ps1
-  - Add ErrorAction parameter for SPWeb CmdLet
-- release.yml
-  - Use softprops/action-gh-release@v1 action for release step
-  - Add github.ref for release name
-  - Remove actions/upload-artifact@v3
-
-### Added
-
-  - Add RELEASE-NOTES.md file
+ - BREAKING CHANGE: Remove Add-HostsEntry function
+ - Using the CmdLet Add-Content for update HOSTS file
 
 ## Changelog
 
