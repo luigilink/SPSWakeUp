@@ -857,6 +857,8 @@ else {
         $getSPSites = Get-SPSSitesUrl
         if ($null -ne $getSPWebApps -and $null -ne $getSPSites) {
             if ($hostEntries) {
+                # Disable LoopBack Check
+                Disable-LoopbackCheck
                 # Remove Duplicate Entries
                 $hostEntries = $hostEntries | Get-Unique
                 # Initialize variables

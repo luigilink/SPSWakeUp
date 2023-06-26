@@ -8,8 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - SPSWakeUP.ps1
- - BREAKING CHANGE: Remove Add-HostsEntry function
- - Using the CmdLet Add-Content for update HOSTS file
+  - BREAKING CHANGE: Remove Add-HostsEntry function
+  - Using the CmdLet Add-Content for update HOSTS file
 
 ## [2.7.1] - 2023-05-10
 
@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-  - Add RELEASE-NOTES.md file
+- Add RELEASE-NOTES.md file
 
 ## [2.7.0] - 2023-05-08
 

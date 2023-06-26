@@ -5,8 +5,8 @@
 ### Changed
 
 - SPSWakeUP.ps1
- - BREAKING CHANGE: Remove Add-HostsEntry function
- - Using the CmdLet Add-Content for update HOSTS file
+  - BREAKING CHANGE: Remove Add-HostsEntry function
+  - Using the CmdLet Add-Content for update HOSTS file
 
 ## Changelog
 
