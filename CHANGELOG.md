@@ -3,6 +3,24 @@
 The format is based on and uses the types of changes according to [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2024-10-10
+
+### Added
+
+- README.md
+  - Add code_of_conduct.md badge
+- Add CODE_OF_CONDUCT.md file
+- Add Issue Templates files:
+  - 1_bug_report.yml
+  - 2_feature_request.yml
+  - 3_documentation_request.yml
+  - 4_improvement_request.yml
+  - config.yml
+
+### Fixed
+
+- Increase major version to 3.x.x as suggested by DennisL68 in ([issue #17](https://github.com/luigilink/SPSWakeUp/issues/17))
+
 ## [2.7.2] - 2023-06-15
 
 ### Changed
@@ -219,7 +237,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Works with FBA if Windows authentication is enabled on the same web application
   - Use Internet Explorer to download JS, CSS and Pictures files
   - All site collection (HSNC include) for all web applications are included in warm-up
-  - Disable IE ESC, Disable LoopBackCheck : *Secure* or *Less Secure*,
+  - Disable IE ESC, Disable LoopBackCheck : _Secure_ or _Less Secure_,
   - Add Web application Urls in HOSTS file and in Internet Options Security,
   - Add User Account in User Policy for Each Web Application,
   - Clear Cache Internet Explorer.

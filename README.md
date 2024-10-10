@@ -5,6 +5,7 @@
 ![Latest release date](https://img.shields.io/github/release-date/luigilink/spswakeup.svg?style=flat)
 ![Total downloads](https://img.shields.io/github/downloads/luigilink/spswakeup/total.svg?style=flat)  
 ![Issues opened](https://img.shields.io/github/issues/luigilink/spswakeup.svg?style=flat)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](code_of_conduct.md)
 
 ## Description
 
@@ -16,12 +17,12 @@ It's compatible with all supported versions for SharePoint OnPremises (2016 to S
 
 ## Features
 
-* **Multiple authentication providers** => Works with Integrated windows and Forms Based Authentication
-* **Multi-Threading** for better performance => Execution time can be divide per 4 (depends of CPU Number)
-* Better performance with **output-cache** for Publishing Site
-* **HSNC** Host Named Site Collection
-* Disable Loop Back Check - Secure Mode (backconnectionhostnames)
-* **Automatic Installation** in Task Scheduler
+- **Multiple authentication providers** => Works with Integrated windows and Forms Based Authentication
+- **Multi-Threading** for better performance => Execution time can be divide per 4 (depends of CPU Number)
+- Better performance with **output-cache** for Publishing Site
+- **HSNC** Host Named Site Collection
+- Disable Loop Back Check - Secure Mode (backconnectionhostnames)
+- **Automatic Installation** in Task Scheduler
 
 Use WebRequest from System.Net.HttpWebRequest to download JS, CSS and Pictures files, Log script results in log file, Email nofications, Configure automatically prerequisites for a best warm-up.
 
@@ -30,6 +31,7 @@ This current version supports FBA and Windows Authentication (Claims, NTLM and K
 For more details of available features [Click here!](https://github.com/luigilink/spswakeup/wiki/Features)
 
 ## Requirements
+
 ### Windows Management Framework 5.0
 
 Required because this module now implements class-based resources.

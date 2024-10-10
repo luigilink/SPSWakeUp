@@ -1,0 +1,39 @@
+name: Documentation Request
+description: Suggest improvements or request missing documentation.
+title: "[Documentation]: "
+labels: ["documentation", "triage"]
+projects: ["SPSWakeUp"]
+assignees:
+  - luigilink
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting improvements to the documentation. Please be as detailed as possible.
+
+  - type: textarea
+    id: doc-area
+    attributes:
+      label: Area of Documentation
+      description: Which part of the documentation needs to be improved or added?
+      placeholder: e.g., API usage, installation guide, etc.
+    validations:
+      required: true
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: Describe the improvements or missing information.
+      placeholder: Describe the changes you'd like to see.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this request, you agree to follow our [Code of Conduct](https://github.com/luigilink/SPSWakeUp/blob/main/CODE_OF_CONDUCT.md).
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true

@@ -1,0 +1,39 @@
+name: Refactor/Improvement Request
+description: Request improvements or code refactoring.
+title: "[Improvement]: "
+labels: ["enhancement", "refactor", "triage"]
+projects: ["SPSWakeUp"]
+assignees:
+  - luigilink
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a refactor or improvement to the codebase. Please provide details below.
+
+  - type: textarea
+    id: improvement-description
+    attributes:
+      label: What improvement would you like to see?
+      description: Describe the refactor, optimization, or code improvement.
+      placeholder: Explain the change you are suggesting.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reasons
+    attributes:
+      label: Why is this improvement needed?
+      description: Describe the benefits of this improvement.
+      placeholder: Why does this matter? Will it improve performance, readability, etc.?
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this request, you agree to follow our [Code of Conduct](https://github.com/luigilink/SPSWakeUp/blob/main/CODE_OF_CONDUCT.md).
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true

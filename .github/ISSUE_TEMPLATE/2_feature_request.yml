@@ -1,0 +1,61 @@
+name: Feature Request
+description: Suggest a new feature or improvement.
+title: "[Feature Request]: "
+labels: ["enhancement", "triage"]
+projects: ["SPSWakeUp"]
+assignees:
+  - luigilink
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature or improvement! Please provide as much detail as possible.
+
+  - type: input
+    id: contact
+    attributes:
+      label: Contact Details (Optional)
+      description: How can we get in touch with you if we need more info?
+      placeholder: ex. email@example.com
+    validations:
+      required: false
+
+  - type: textarea
+    id: feature-description
+    attributes:
+      label: Describe the feature you'd like to see
+      description: What do you want to achieve? What problem does it solve?
+      placeholder: Describe the feature or improvement you're suggesting.
+    validations:
+      required: true
+
+  - type: textarea
+    id: potential-solutions
+    attributes:
+      label: Potential solutions or alternatives
+      description: If you have any ideas on how to implement this feature, feel free to share!
+      placeholder: Suggest how this could be implemented or any alternative ideas.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to you?
+      options:
+        - Low
+        - Medium
+        - High
+      default: Low
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/luigilink/SPSWakeUp/blob/main/CODE_OF_CONDUCT.md).
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true

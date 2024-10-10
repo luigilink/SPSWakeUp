@@ -6,7 +6,7 @@ on:
   push:
     # Sequence of patterns matched against refs/tags
     tags:
-      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+      - "v*" # Push events to matching v*, i.e. v1.0, v20.15.10
 
 jobs:
   build:
@@ -15,11 +15,17 @@ jobs:
       # Checkout code
       - name: Checkout code
         id: checkout_code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+      # Create a ZIP file with project name and tag version
+      - name: Create ZIP file of scripts
+        run: |
+          zip_name="SPSWakeUp-${{ github.ref_name }}.zip"
+          zip -r $zip_name scripts/
+        shell: bash
       # Create Release with tag version
       - name: Create GitHub Release
         id: create_release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -28,4 +34,4 @@ jobs:
           body_path: RELEASE-NOTES.md
           files: |
             LICENSE
-            Scripts/SPSWakeUP.ps1
+            SPSWakeUp-${{ github.ref_name }}.zip
