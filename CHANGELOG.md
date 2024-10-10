@@ -3,7 +3,7 @@
 The format is based on and uses the types of changes according to [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.0.0] - 2024-10-10
+## [3.0.1] - 2024-10-10
 
 ### Added
 
@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 3_documentation_request.yml
   - 4_improvement_request.yml
   - config.yml
+
+### Changed
+
+- Rename folder Scripts to scripts
 
 ### Fixed
 
