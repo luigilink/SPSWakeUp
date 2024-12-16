@@ -46,8 +46,8 @@
     FileName:	SPSWakeUP.ps1
     Authors:	luigilink (Jean-Cyril DROUHIN)
                 Nutsoft (Des Finkenzeller)
-    Date:		June 15, 2023
-    Version:	2.7.2
+    Date:		December 16, 2024
+    Version:	3.0.2
     Licence:	MIT License
 
     .LINK
@@ -85,16 +85,16 @@ Clear-Host
 $Host.UI.RawUI.WindowTitle = "WarmUP script running on $env:COMPUTERNAME"
 
 # Define variable
-$spsWakeupVersion = '2.7.2'
-$currentUser      = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
-$scriptRootPath   = Split-Path -parent $MyInvocation.MyCommand.Definition
-$hostEntries      = New-Object -TypeName System.Collections.Generic.List[string]
-$hostsFile        = "$env:windir\System32\drivers\etc\HOSTS"
-$hostsFileCopy    = $hostsFile + '.' + (Get-Date -UFormat "%y%m%d%H%M%S").ToString() + '.copy'
+$spsWakeupVersion = '3.0.2'
+$currentUser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
+$scriptRootPath = Split-Path -parent $MyInvocation.MyCommand.Definition
+$hostEntries = New-Object -TypeName System.Collections.Generic.List[string]
+$hostsFile = "$env:windir\System32\drivers\etc\HOSTS"
+$hostsFileCopy = $hostsFile + '.' + (Get-Date -UFormat "%y%m%d%H%M%S").ToString() + '.copy'
 
 # Start Transcript parameter is equal to True
 if ($Transcript) {
-    $pathLogFile  = Join-Path -Path $scriptRootPath -ChildPath ('SPSWakeUP_script_' + (Get-Date -Format yyyy-MM-dd_H-mm) + '.log')
+    $pathLogFile = Join-Path -Path $scriptRootPath -ChildPath ('SPSWakeUP_script_' + (Get-Date -Format yyyy-MM-dd_H-mm) + '.log')
     Start-Transcript -Path $pathLogFile -IncludeInvocationHeader
 }
 
@@ -106,8 +106,8 @@ if ($Install) {
         Break
     }
     else {
-        $UserName      = $InstallAccount.UserName
-        $Password      = $InstallAccount.GetNetworkCredential().Password
+        $UserName = $InstallAccount.UserName
+        $Password = $InstallAccount.GetNetworkCredential().Password
         $currentDomain = 'LDAP://' + ([ADSI]'').distinguishedName
         Write-Output "Checking Account `"$UserName`" ..."
         $dom = New-Object System.DirectoryServices.DirectoryEntry($currentDomain, $UserName, $Password)
@@ -123,14 +123,13 @@ if ($Install) {
 # Func: Write-LogException
 # Desc: write Exception in powershell session and in error file
 # ===================================================================================
-function Write-LogException
-{
+function Write-LogException {
     [CmdletBinding()]
     [Alias()]
     [OutputType([String])]
     param
     (
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         $Message
     )
 
@@ -142,11 +141,10 @@ function Write-LogException
 # Func: Clear-SPSLog
 # Desc: Clean Log Files
 # ===================================================================================
-function Clear-SPSLog
-{
+function Clear-SPSLog {
     param
     (
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [System.String]
         $path,
@@ -187,17 +185,16 @@ function Clear-SPSLog
 # Func: Add-SPSTask
 # Desc: Add SPSWakeUP Task in Task Scheduler
 # ===================================================================================
-function Add-SPSTask
-{
+function Add-SPSTask {
     param
     (
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [System.String]
         $Path
     )
 
     $TrigSubscription =
-@"
+    @"
 <QueryList><Query Id="0" Path="System"><Select Path="System">*[System[Provider[@Name='Microsoft-Windows-IIS-IISReset'] and EventID=3201]]</Select></Query></QueryList>
 "@
     $TaskDate = Get-Date -Format yyyy-MM-dd
@@ -213,7 +210,7 @@ function Add-SPSTask
     }
     $TaskCmd = 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe'
     $TaskCmdArg =
-@"
+    @"
 -Command Start-Process "$PSHOME\powershell.exe" -Verb RunAs -ArgumentList "'-ExecutionPolicy Bypass ""$path\SPSWakeUP.ps1""'"
 "@
 
@@ -280,8 +277,7 @@ function Add-SPSTask
 # Func: Remove-SPSTask
 # Desc: Remove SPSWakeUP Task from Task Scheduler
 # ===================================================================================
-function Remove-SPSTask
-{
+function Remove-SPSTask {
     $TaskName = 'SPSWakeUP'
     $Hostname = $Env:computername
 
@@ -314,8 +310,7 @@ function Remove-SPSTask
 # Name: 		Add-PSSharePoint
 # Description:	Load SharePoint Powershell Snapin
 # ===================================================================================
-function Add-PSSharePoint
-{
+function Add-PSSharePoint {
     if ($null -eq (Get-PSSnapin | Where-Object -FilterScript { $_.Name -eq 'Microsoft.SharePoint.PowerShell' })) {
         Write-Output '--------------------------------------------------------------'
         Write-Output 'Loading SharePoint Powershell Snapin ...'
@@ -327,15 +322,14 @@ function Add-PSSharePoint
 # Name: 		Get-SPSThrottleLimit
 # Description:	Get Number Of Throttle Limit
 # ===================================================================================
-function Get-SPSThrottleLimit
-{
+function Get-SPSThrottleLimit {
     # Get Number Of Throttle Limit
     process {
         try {
-            $cimInstanceProc   = @(Get-CimInstance -ClassName Win32_Processor)
+            $cimInstanceProc = @(Get-CimInstance -ClassName Win32_Processor)
             $cimInstanceSocket = $cimInstanceProc.count
-            $numLogicalCpu     = $cimInstanceProc[0].NumberOfLogicalProcessors * $cimInstanceSocket
-            $NumThrottle       = @{ $true = 10; $false = 2 * $numLogicalCpu }[$numLogicalCpu -ge 8]
+            $numLogicalCpu = $cimInstanceProc[0].NumberOfLogicalProcessors * $cimInstanceSocket
+            $NumThrottle = @{ $true = 10; $false = 2 * $numLogicalCpu }[$numLogicalCpu -ge 8]
             return $NumThrottle
         }
         catch {
@@ -350,8 +344,7 @@ function Get-SPSThrottleLimit
 # Name: 		Get-SPSVersion
 # Description:	PowerShell script to display SharePoint products from the registry.
 # ===================================================================================
-function Get-SPSVersion
-{
+function Get-SPSVersion {
     process {
         try {
             # location in registry to get info about installed software
@@ -376,18 +369,17 @@ function Get-SPSVersion
 # Name: 		Add-SPSHostEntry
 # Description:	Add Web Application and HSNC Urls in hostEntries Variable
 # ===================================================================================
-function Add-SPSHostEntry
-{
+function Add-SPSHostEntry {
     param
     (
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [System.String]
         $url
     )
 
-    $url = $url -replace 'https://',''
-    $url = $url -replace 'http://',''
+    $url = $url -replace 'https://', ''
+    $url = $url -replace 'http://', ''
     $hostNameEntry = $url.split('/')[0]
     [void]$hostEntries.Add($hostNameEntry)
 }
@@ -395,8 +387,7 @@ function Add-SPSHostEntry
 # Name: 		Get-SPSAdminUrl
 # Description:	Get All Url of Central Admin
 # ===================================================================================
-function Get-SPSAdminUrl
-{
+function Get-SPSAdminUrl {
     try {
         # Initialize ArrayList Object
         $tbCASitesURL = New-Object -TypeName System.Collections.ArrayList
@@ -406,25 +397,25 @@ function Get-SPSAdminUrl
         }
         [void]$tbCASitesURL.Add("$($webAppADM.Url)")
         # List of the most useful administration pages and Quick launch top links
-        $urlsAdmin = @('Lists/HealthReports/AllItems.aspx',`
-                       '_admin/FarmServers.aspx',`
-                       '_admin/Server.aspx',`
-                       '_admin/WebApplicationList.aspx',`
-                       '_admin/ServiceApplications.aspx',`
-                       'applications.aspx',`
-                       'systemsettings.aspx',`
-                       'monitoring.aspx',`
-                       'backups.aspx',`
-                       'security.aspx',`
-                       'upgradeandmigration.aspx',`
-                       'apps.aspx',`
-                       'generalapplicationsettings.aspx')
-        foreach($urlAdmin in $urlsAdmin) {
+        $urlsAdmin = @('Lists/HealthReports/AllItems.aspx', `
+                '_admin/FarmServers.aspx', `
+                '_admin/Server.aspx', `
+                '_admin/WebApplicationList.aspx', `
+                '_admin/ServiceApplications.aspx', `
+                'applications.aspx', `
+                'systemsettings.aspx', `
+                'monitoring.aspx', `
+                'backups.aspx', `
+                'security.aspx', `
+                'upgradeandmigration.aspx', `
+                'apps.aspx', `
+                'generalapplicationsettings.aspx')
+        foreach ($urlAdmin in $urlsAdmin) {
             [void]$tbCASitesURL.Add("$($webAppADM.Url)$($urlAdmin)")
         }
         # Get Service Application Urls and then in ArrayList Object
         $sa = Get-SPServiceApplication
-        $linkUrls = $sa | ForEach-Object {$_.ManageLink.Url} | Select-Object -Unique
+        $linkUrls = $sa | ForEach-Object { $_.ManageLink.Url } | Select-Object -Unique
         foreach ($linkUrl in $linkUrls) {
             $siteADMSA = $linkUrl.TrimStart('/')
             [void]$tbCASitesURL.Add("$($webAppADM.Url)$($siteADMSA)")
@@ -439,8 +430,7 @@ function Get-SPSAdminUrl
 # Name: 		Get-SPSSitesUrl
 # Description:	Get All Site Collections Url
 # ===================================================================================
-function Get-SPSSitesUrl
-{
+function Get-SPSSitesUrl {
     try {
         # Initialize ArrayList Object
         $tbSitesURL = New-Object -TypeName System.Collections.ArrayList
@@ -481,8 +471,7 @@ function Get-SPSSitesUrl
 # Name: 		Get-SPSWebAppUrl
 # Description:	Get All Web Applications and Host Named Site Collection Url
 # ===================================================================================
-function Get-SPSWebAppUrl
-{
+function Get-SPSWebAppUrl {
     try {
         # Initialize ArrayList Object
         $webAppURL = New-Object -TypeName System.Collections.ArrayList
@@ -525,16 +514,15 @@ function Get-SPSWebAppUrl
 # Name: 		Invoke-SPSWebRequest
 # Description:	Multi-Threading Request Url with System.Net.WebClient Object
 # ===================================================================================
-function Invoke-SPSWebRequest
-{
+function Invoke-SPSWebRequest {
     param
     (
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [System.String[]]
         $Urls,
 
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         $throttleLimit
     )
 
@@ -542,7 +530,7 @@ function Invoke-SPSWebRequest
     {
         param
         (
-            [Parameter(Mandatory=$true)]
+            [Parameter(Mandatory = $true)]
             [ValidateNotNullOrEmpty()]
             [System.String]
             $Uri,
@@ -559,17 +547,17 @@ function Invoke-SPSWebRequest
                 $startProcess = Get-Date
                 if ($null -ne $sessionWeb) {
                     $webResponse = Invoke-WebRequest -Uri $uri `
-                                                     -WebSession $sessionWeb `
-                                                     -TimeoutSec 90 `
-                                                     -UserAgent $useragent `
-                                                     -UseBasicParsing
+                        -WebSession $sessionWeb `
+                        -TimeoutSec 90 `
+                        -UserAgent $useragent `
+                        -UseBasicParsing
                 }
                 else {
                     $webResponse = Invoke-WebRequest -Uri $uri `
-                                                     -UseDefaultCredentials `
-                                                     -TimeoutSec 90 `
-                                                     -UserAgent $useragent `
-                                                     -UseBasicParsing
+                        -UseDefaultCredentials `
+                        -TimeoutSec 90 `
+                        -UserAgent $useragent `
+                        -UseBasicParsing
                 }
                 $timeExec = '{0:N2}' -f (((Get-Date) - $startProcess).TotalSeconds)
                 $Response = "$([System.int32]$webResponse.StatusCode) - $($webResponse.StatusDescription)"
@@ -594,21 +582,21 @@ function Invoke-SPSWebRequest
     try {
         # Initialize variables and runpsace for Multi-Threading Request
         $psUserAgent = [Microsoft.PowerShell.Commands.PSUserAgent]::Chrome
-        $Jobs        = @()
-        $iss         = [system.management.automation.runspaces.initialsessionstate]::CreateDefault()
-        $Pool        = [runspacefactory]::CreateRunspacePool(1, $throttleLimit, $iss, $Host)
+        $Jobs = @()
+        $iss = [system.management.automation.runspaces.initialsessionstate]::CreateDefault()
+        $Pool = [runspacefactory]::CreateRunspacePool(1, $throttleLimit, $iss, $Host)
         $Pool.Open()
 
         # Initialize WebSession from First SPWebApplication object
-        $webApp     = Get-SpWebApplication | Select-Object -first 1
+        $webApp = Get-SpWebApplication | Select-Object -first 1
         $authentUrl = ("$($webapp.GetResponseUri('Default').AbsoluteUri)" + '_windows/default.aspx?ReturnUrl=/_layouts/15/Authenticate.aspx?Source=%2f')
         Write-Output "Getting webSession by opening $($authentUrl) with Invoke-WebRequest"
         Invoke-WebRequest -Uri $authentUrl `
-                          -SessionVariable webSession `
-                          -UseDefaultCredentials `
-                          -UseBasicParsing `
-                          -TimeoutSec 90 `
-                          -UserAgent $psUserAgent
+            -SessionVariable webSession `
+            -UseDefaultCredentials `
+            -UseBasicParsing `
+            -TimeoutSec 90 `
+            -UserAgent $psUserAgent
         foreach ($Url in $Urls) {
             $Job = [powershell]::Create().AddScript($ScriptBlock).AddParameter('Uri', $Url).AddParameter('UserAgent', $psUserAgent).AddParameter('SessionWeb', $webSession)
             $Job.RunspacePool = $Pool
@@ -648,7 +636,7 @@ function Invoke-SPSWebRequest
 #       that resolve to a loopback address e.g.  127.0.0.1
 # ===================================================================================
 function Disable-LoopbackCheck {
-    $lsaPath      = 'HKLM:\System\CurrentControlSet\Control\Lsa'
+    $lsaPath = 'HKLM:\System\CurrentControlSet\Control\Lsa'
     $lsaPathValue = Get-ItemProperty -path $lsaPath
     if (-not ($lsaPathValue.DisableLoopbackCheck -eq '1')) {
         Write-Output 'Disabling Loopback Check...'
@@ -662,11 +650,10 @@ function Disable-LoopbackCheck {
 # Func: Clear-HostsFileCopy
 # Desc: Clear previous HOSTS File copy
 # ====================================================================================
-function Clear-HostsFileCopy
-{
+function Clear-HostsFileCopy {
     Param
     (
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [System.String]
         $hostsFilePath,
@@ -699,15 +686,14 @@ function Clear-HostsFileCopy
 # Func: Add-SPSUserPolicy
 # Desc: Applies Read Access to the specified accounts for a web application
 # ===================================================================================
-function Add-SPSUserPolicy
-{
+function Add-SPSUserPolicy {
     param
     (
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         $Urls,
 
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [System.String]
         $UserName
@@ -763,10 +749,9 @@ function Add-SPSUserPolicy
 $DateStarted = Get-date
 $psVersion = ($host).Version.ToString()
 $spsVersion = Get-SPSVersion
-if ($PSVersionTable.PSVersion -gt [Version]'2.0' -and $spsVersion -lt 15)
-{
-  powershell -Version 2 -File $MyInvocation.MyCommand.Definition
-  exit
+if ($PSVersionTable.PSVersion -gt [Version]'2.0' -and $spsVersion -lt 15) {
+    powershell -Version 2 -File $MyInvocation.MyCommand.Definition
+    exit
 }
 
 Write-Output '-------------------------------------'
@@ -804,8 +789,8 @@ else {
     else {
         Write-Output "Setting power management plan to `"High Performance`"..."
         Start-Process -FilePath "$env:SystemRoot\system32\powercfg.exe" `
-                      -ArgumentList '/s 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c' `
-                      -NoNewWindow
+            -ArgumentList '/s 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c' `
+            -NoNewWindow
 
         # Load SharePoint Powershell Snapin, Assembly and System.Web
         Add-PSSharePoint
@@ -831,7 +816,7 @@ else {
                     try {
                         $startInvoke = Get-Date
                         $webResponse = Invoke-WebRequest -Uri $spADMUrl -UseDefaultCredentials -TimeoutSec 90 -UseBasicParsing
-                        $TimeExec = '{0:N2}' -f  (((Get-Date) - $startInvoke).TotalSeconds)
+                        $TimeExec = '{0:N2}' -f (((Get-Date) - $startInvoke).TotalSeconds)
                         Write-Output '-----------------------------------'
                         Write-Output "| Url    : $spADMUrl"
                         Write-Output "| Time   : $TimeExec"
@@ -863,7 +848,7 @@ else {
                 $hostEntries = $hostEntries | Get-Unique
                 # Initialize variables
                 $hostFileNeedsBackup = $true
-                $hostIPV4Addr        = '127.0.0.1'
+                $hostIPV4Addr = '127.0.0.1'
                 # Make backup copy of the Hosts file with today's date Add Web Application and Host Named Site Collection Urls in HOSTS system File
                 Write-Output '--------------------------------------------------------------'
                 Write-Output 'Add Urls of All Web Applications or HSNC in HOSTS File ...'
