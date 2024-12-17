@@ -17,10 +17,10 @@ jobs:
         id: checkout_code
         uses: actions/checkout@v4
       # Create a ZIP file with project name and tag version
-      - name: Create ZIP file of scripts
+      - name: Create ZIP file of SPSWakeUP
         run: |
           zip_name="SPSWakeUp-${{ github.ref_name }}.zip"
-          zip -r $zip_name scripts/
+          zip -r $zip_name SPSWakeUP/
         shell: bash
       # Create Release with tag version
       - name: Create GitHub Release
