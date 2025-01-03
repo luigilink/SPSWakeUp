@@ -67,8 +67,11 @@
 
   # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
   FunctionsToExport = @(
-    'Add-SPSWakeUpEvent',
-    'Get-SPSInstalledProductVersion'
+    'Add-SPSSheduledTask',
+    'Remove-SPSSheduledTask',
+    'Get-SPSInstalledProductVersion',
+    'Invoke-SPSAdminSites',
+    'Invoke-SPSAllSites'
   )
 
   # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
