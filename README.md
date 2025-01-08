@@ -15,21 +15,6 @@ It's compatible with all supported versions for SharePoint OnPremises (2016 to S
 
 [Download the latest release, Click here!](https://github.com/luigilink/spswakeup/releases/latest)
 
-## Features
-
-- **Multiple authentication providers** => Works with Integrated windows and Forms Based Authentication
-- **Multi-Threading** for better performance => Execution time can be divide per 4 (depends of CPU Number)
-- Better performance with **output-cache** for Publishing Site
-- **HSNC** Host Named Site Collection
-- Disable Loop Back Check - Secure Mode (backconnectionhostnames)
-- **Automatic Installation** in Task Scheduler
-
-Use WebRequest from System.Net.HttpWebRequest to download JS, CSS and Pictures files, Log script results in log file, Email nofications, Configure automatically prerequisites for a best warm-up.
-
-This current version supports FBA and Windows Authentication (Claims, NTLM and Kerberos).
-
-For more details of available features [Click here!](https://github.com/luigilink/spswakeup/wiki/Features)
-
 ## Requirements
 
 ### Windows Management Framework 5.0
@@ -38,6 +23,10 @@ Required because this module now implements class-based resources.
 Class-based resources can only work on computers with Windows
 Management Framework 5.0 or above.
 The preferred version is PowerShell 5.1 or higher, which ships with Windows 10 or Windows Server 2016.
+
+## Documentation
+
+For detailed usage, configuration, and getting started information, visit the [SPSWakeUp Wiki](https://github.com/luigilink/spswakeup/wiki)
 
 ## Changelog
 

@@ -74,14 +74,7 @@ $scriptRootPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $script:HelperModulePath = Join-Path -Path $scriptRootPath -ChildPath 'Modules'
 
 # Import the helper module
-Import-Module -Name (Join-Path -Path $script:HelperModulePath -ChildPath 'SPSWakeUP.Util.psm1') -Force
-
-# Define variable
-$spsWakeupVersion = '4.0.0'
-$DateStarted = Get-date
-$psVersion = ($host).Version.ToString()
-$spsVersion = Get-SPSInstalledProductVersion
-$currentUser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
+Import-Module -Name (Join-Path -Path $script:HelperModulePath -ChildPath 'SPSWakeUP.Util.psm1') -Force -DisableNameChecking
 
 # Start Transcript parameter is equal to True
 if ($Transcript) {
@@ -91,13 +84,6 @@ if ($Transcript) {
     # Start Transcript with the log file
     Start-Transcript -Path $pathLogFile -IncludeInvocationHeader
 }
-
-Write-Output '-------------------------------------'
-Write-Output "| Automated Script - SPSWakeUp v$spsWakeupVersion"
-Write-Output "| Started on : $DateStarted by $currentUser"
-Write-Output "| PowerShell Version: $psVersion"
-Write-Output "| SharePoint Version: $spsVersion"
-Write-Output '-------------------------------------'
 
 switch ($Action) {
     'Uninstall' {

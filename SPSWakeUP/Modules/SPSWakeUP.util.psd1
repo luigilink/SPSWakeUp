@@ -69,6 +69,9 @@
   FunctionsToExport = @(
     'Add-SPSSheduledTask',
     'Remove-SPSSheduledTask',
+    'Get-SPSAdminUrl',
+    'Get-SPSSitesUrl',
+    'Get-SPSWebAppUrl',
     'Get-SPSInstalledProductVersion',
     'Invoke-SPSAdminSites',
     'Invoke-SPSAllSites'

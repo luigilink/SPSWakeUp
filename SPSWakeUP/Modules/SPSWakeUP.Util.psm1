@@ -3,48 +3,10 @@ if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
   Throw "Administrator rights are required. Please re-run this script as an Administrator."
 }
 # Setting power management plan to High Performance"
-Start-Process -FilePath "$env:SystemRoot\system32\powercfg.exe" `
-  -ArgumentList '/s 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c' `
-  -NoNewWindow
-# Load SharePoint Powershell Snapin or Import-Module
-try {
-  $installedVersion = Get-SPSInstalledProductVersion
-  if ($installedVersion.ProductMajorPart -eq 15 -or $installedVersion.ProductBuildPart -le 12999) {
-    if ($null -eq (Get-PSSnapin -Name Microsoft.SharePoint.PowerShell -ErrorAction SilentlyContinue)) {
-      Add-PSSnapin Microsoft.SharePoint.PowerShell
-    }
-  }
-  else {
-    Import-Module SharePointServer -Verbose:$false -WarningAction SilentlyContinue
-  }
-}
-catch {
-  # Handle errors during retrieval of Installed Product Version
-  $catchMessage = @"
-Failed to get installed Product Version for $($env:COMPUTERNAME)
-Exception: $($_.Exception.Message)
-"@
-  Write-Error -Message $catchMessage
-  Add-SPSWakeUpEvent -Message $catchMessage -Source 'SPSWakeUP' -EntryType 'Error'
-}
-# From SharePoint 2016, check if MinRole equal to Search
-try {
-  $currentSPServer = Get-SPServer | Where-Object -FilterScript { $_.Address -eq $env:COMPUTERNAME }
-  if ($null -ne $currentSPServer -and (Get-SPFarm).buildversion.major -ge 16) {
-    if ($currentSPServer.Role -eq 'Search') {
-      Write-Warning -Message 'You run this script on server with Search MinRole'
-      Add-SPSWakeUpEvent -Message 'Search MinRole is not supported in SPSWakeUp' -Source 'SPSWakeUP' -EntryType 'Warning'
-      Break
-    }
-  }
-}
-catch {
-  Write-Error -Message @"
-An error occurred while checking the SharePoint Server Role
-ComputerName: $($env:COMPUTERNAME)
-Exception: $($_.Exception.Message)
-"@
-}
+Start-Process -FilePath "$env:SystemRoot\system32\powercfg.exe" -ArgumentList '/s 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c' -NoNewWindow
+# Define variable
+$spsWakeupVersion = '4.0.0'
+$currentUser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
 function Add-SPSWakeUpEvent {
   [CmdletBinding()]
   param
@@ -87,16 +49,76 @@ function Add-SPSWakeUpEvent {
   }
 
   try {
-    Write-EventLog -LogName $LogName -Source $Source -EventId $EventID -Message $Message -EntryType $EntryType
+    $headerMessage = @"
+SPSWakeUp Module Version: $spsWakeupVersion
+User: $currentUser
+ComputerName: $($env:COMPUTERNAME)
+--------------------------------------------------------------
+"@
+    Write-EventLog -LogName $LogName -Source $Source -EventId $EventID -Message ($headerMessage + "`r`n" + $Message) -EntryType $EntryType
   }
   catch {
     Write-Error -Message @"
+SPSWakeUp Module Version: $spsWakeupVersion
 An error occurred while adding Event Log in Source: $Source
+User: $currentUser 
 ComputerName: $($env:COMPUTERNAME)
 Exception: $_
 "@
   }
 }
+function Get-SPSInstalledProductVersion {
+  [OutputType([System.Version])]
+  param ()
+
+  $pathToSearch = 'C:\Program Files\Common Files\microsoft shared\Web Server Extensions\*\ISAPI\Microsoft.SharePoint.dll'
+  $fullPath = Get-Item $pathToSearch -ErrorAction SilentlyContinue | Sort-Object { $_.Directory } -Descending | Select-Object -First 1
+  if ($null -eq $fullPath) {
+    throw 'SharePoint path {C:\Program Files\Common Files\microsoft shared\Web Server Extensions} does not exist'
+  }
+  else {
+    return (Get-Command $fullPath).FileVersionInfo
+  }
+}
+# Load SharePoint Powershell Snapin or Import-Module
+try {
+  $installedVersion = Get-SPSInstalledProductVersion
+  if ($installedVersion.ProductMajorPart -eq 15 -or $installedVersion.ProductBuildPart -le 12999) {
+    if ($null -eq (Get-PSSnapin -Name Microsoft.SharePoint.PowerShell -ErrorAction SilentlyContinue)) {
+      Add-PSSnapin Microsoft.SharePoint.PowerShell
+    }
+  }
+  else {
+    Import-Module SharePointServer -Verbose:$false -WarningAction SilentlyContinue -DisableNameChecking
+  }
+}
+catch {
+  # Handle errors during retrieval of Installed Product Version
+  $catchMessage = @"
+Failed to get installed Product Version for $($env:COMPUTERNAME)
+Exception: $($_.Exception.Message)
+"@
+  Write-Error -Message $catchMessage
+  Add-SPSWakeUpEvent -Message $catchMessage -Source 'Initialize Module' -EntryType 'Error'
+}
+# From SharePoint 2016, check if MinRole equal to Search
+try {
+  $currentSPServer = Get-SPServer | Where-Object -FilterScript { $_.Address -eq $env:COMPUTERNAME }
+  if ($null -ne $currentSPServer -and (Get-SPFarm).buildversion.major -ge 16) {
+    if ($currentSPServer.Role -eq 'Search') {
+      Write-Warning -Message 'You run this script on server with Search MinRole'
+      Add-SPSWakeUpEvent -Message 'Search MinRole is not supported in SPSWakeUp' -Source 'Server MinRole' -EntryType 'Warning'
+      Break
+    }
+  }
+}
+catch {
+  Write-Error -Message @"
+An error occurred while checking the SharePoint Server Role
+Exception: $($_.Exception.Message)
+"@
+}
+
 function Add-SPSSheduledTask {
   param
   (
@@ -195,12 +217,6 @@ function Add-SPSSheduledTask {
     $TaskTrigger3.Subscription = $TrigSubscription
     $TaskTrigger3.Enabled = $true
 
-    # Add Trigger Type 2 OnSchedule Daily Start at 6:00 AM
-    $TaskTrigger1 = $TaskTriggers.Create(2) # 2 = Daily trigger
-    $TaskTrigger1.StartBoundary = $TaskDate + 'T06:00:00' # Start time
-    $TaskTrigger1.DaysInterval = 1 # Interval of 1 day
-    $TaskTrigger1.Enabled = $true
-
     # Define the task action
     $TaskAction = $TaskSchd.Actions.Create(0) # 0 = Executable action
     $TaskAction.Path = $TaskCmd # Path to the executable
@@ -210,11 +226,16 @@ function Add-SPSSheduledTask {
       # Register the task
       $TaskFolder.RegisterTaskDefinition($TaskName, $TaskSchd, 6, $TaskUser, $TaskUserPwd, 1)
       Write-Output "Successfully added '$TaskName' script in Task Scheduler Service"
-      Add-SPSWakeUpEvent -Message "Successfully added '$TaskName' script in Task Scheduler Service" -Source 'SPSWakeUP' -EntryType 'Information'
+      Add-SPSWakeUpEvent -Message "Successfully added '$TaskName' script in Task Scheduler Service" -Source 'Add-SPSSheduledTask' -EntryType 'Information'
     }
     catch {
-      Write-Error -Message $_ # Handle any errors during task registration
-      Add-SPSWakeUpEvent -Message $_ -Source 'SPSWakeUP' -EntryType 'Error'
+      $catchMessage = @"
+An error occurred while adding the script in scheduled task: $($TaskName)
+ActionArguments: $($ActionArguments)
+Exception: $($_.Exception.Message)
+"@
+      Write-Error -Message $catchMessage # Handle any errors during task registration
+      Add-SPSWakeUpEvent -Message $catchMessage -Source 'Add-SPSSheduledTask' -EntryType 'Error'
     }
   }
 }
@@ -255,23 +276,16 @@ function Remove-SPSSheduledTask {
     try {
       $TaskFolder.DeleteTask($TaskName, $null) # Remove the task
       Write-Output "Successfully removed $($TaskName) script from Task Scheduler Service"
+      Add-SPSWakeUpEvent -Message "Successfully removed '$TaskName' script from Task Scheduler Service" -Source 'Remove-SPSSheduledTask' -EntryType 'Information'
     }
     catch {
-      Write-Error -Message $_ # Handle any errors during task removal
+      $catchMessage = @"
+An error occurred while removing the script in scheduled task: $($TaskName)
+Exception: $($_.Exception.Message)
+"@
+      Write-Error -Message $catchMessage # Handle any errors during task removal
+      Add-SPSWakeUpEvent -Message $catchMessage -Source 'Remove-SPSSheduledTask' -EntryType 'Error'
     }
-  }
-}
-function Get-SPSInstalledProductVersion {
-  [OutputType([System.Version])]
-  param ()
-
-  $pathToSearch = 'C:\Program Files\Common Files\microsoft shared\Web Server Extensions\*\ISAPI\Microsoft.SharePoint.dll'
-  $fullPath = Get-Item $pathToSearch -ErrorAction SilentlyContinue | Sort-Object { $_.Directory } -Descending | Select-Object -First 1
-  if ($null -eq $fullPath) {
-    throw 'SharePoint path {C:\Program Files\Common Files\microsoft shared\Web Server Extensions} does not exist'
-  }
-  else {
-    return (Get-Command $fullPath).FileVersionInfo
   }
 }
 function Get-SPSVersion {
@@ -360,7 +374,6 @@ function Clear-SPSLog {
     }
 
     if ($files) {
-      Write-Output '--------------------------------------------------------------'
       Write-Output "Cleaning log files in $path ..."
       foreach ($file in $files) {
         if ($null -ne $file) {
@@ -619,8 +632,12 @@ function Invoke-SPSWebRequest {
 
   }
   catch {
-    Write-Output 'An error occurred invoking multi-threading function'
-    Write-Warning -Message $_
+    $catchMessage = @"
+An error occurred invoking multi-threading function
+Exception: $($_.Exception.Message)
+"@
+    Write-Error -Message $catchMessage # Handle any errors during task removal
+    Add-SPSWakeUpEvent -Message $catchMessage -Source 'Invoke-SPSWebRequest' -EntryType 'Error'
   }
 
   Finally {
@@ -650,16 +667,18 @@ Url: $($spADMUrl)
 Exception: $($_.Exception.Message)
 "@
         Write-Error -Message $catchMessage
-        Add-SPSWakeUpEvent -Message $catchMessage -Source 'SPSWakeUP' -EntryType 'Error'
+        Add-SPSWakeUpEvent -Message $catchMessage -Source 'Invoke-SPSAdminSites' -EntryType 'Error'
       }
     }
   }
   else {
     Write-Warning -Message "No Central Admin Service Instance running on $env:COMPUTERNAME"
+    Add-SPSWakeUpEvent -Message "No Central Admin Service Instance running on $env:COMPUTERNAME" -Source 'Invoke-SPSAdminSites' -EntryType 'Warning'
   }
 }
 function Invoke-SPSAllSites {
   # Initialize variables
+  $DateStarted = Get-Date
   $hostEntries = New-Object -TypeName System.Collections.Generic.List[string]
   $hostsFile = "$env:windir\System32\drivers\etc\HOSTS"
   $hostsFileCopy = $hostsFile + '.' + (Get-Date -UFormat "%y%m%d%H%M%S").ToString() + '.copy'
@@ -718,16 +737,18 @@ function Invoke-SPSAllSites {
     $DateEnded = Get-Date
     $totalUrls = $getSPSites.Count
     $totalDuration = ($DateEnded - $DateStarted).TotalSeconds
-  
-    Write-Output '-------------------------------------'
-    Write-Output '| Automated Script - SPSWakeUp'
-    Write-Output "| Started on : $DateStarted"
-    Write-Output "| Completed on : $DateEnded"
-    Write-Output "| SPSWakeUp waked up $totalUrls urls in $totalDuration seconds"
-    Write-Output '--------------------------------------------------------------'
-    Write-Output '| REPORTING: Memory Usage for each worker process (W3WP.EXE)'
-    Write-Output '| Process Creation Date | Memory | Application Pool Name'
-    Write-Output '--------------------------------------------------------------'
+    
+    $outputMessage = @"
+-------------------------------------
+| SPSWakeUp Script - Invoke-SPSAllSites
+| Started on : $DateStarted
+| Completed on : $DateEnded
+| SPSWakeUp waked up $totalUrls urls in $totalDuration seconds
+--------------------------------------------------------------
+| REPORTING: Memory Usage for each worker process (W3WP.EXE)
+| Process Creation Date | Memory | Application Pool Name
+--------------------------------------------------------------
+"@
   
     $w3wpProcess = Get-CimInstance Win32_Process -Filter "name = 'w3wp.exe'" | Select-Object WorkingSetSize, CommandLine, CreationDate | Sort-Object CommandLine
     foreach ($w3wpProc in $w3wpProcess) {
@@ -735,10 +756,11 @@ function Invoke-SPSAllSites {
       $pos = $w3wpProcCmdLine.IndexOf('"')
       $appPoolName = $w3wpProcCmdLine.Substring(0, $pos)
       $w3wpMemoryUsage = [Math]::Round($w3wpProc.WorkingSetSize / 1MB)
-      Write-Output "| $($w3wpProc.CreationDate) | $($w3wpMemoryUsage) MB | $($appPoolName)"
+      $outputMessage += ("`r`n" + "| $($w3wpProc.CreationDate) | $($w3wpMemoryUsage) MB | $($appPoolName)")
     }
-    Write-Output '--------------------------------------------------------------'
-  
+    Write-Output $outputMessage
+    Add-SPSWakeUpEvent -Message $outputMessage -Source 'Invoke-SPSAllSites'-EntryType Information
+
     # Clean the copy files of system HOSTS folder
     Clear-HostsFileCopy -hostsFilePath $hostsFile
   }

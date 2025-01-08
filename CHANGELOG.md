@@ -5,6 +5,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+Wiki Documentation in repository - Add :
+wiki/Home.md
+wiki/Getting-Started.md
+wiki/Configuration.md
+wiki/Usage.md
+.github/workflows/wiki.yml
+
 ### Changed
 
 - BREAKING CHANGE: Rename scripts folder to SPSWakeUP
