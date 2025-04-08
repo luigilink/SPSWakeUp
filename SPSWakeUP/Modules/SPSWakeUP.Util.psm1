@@ -646,6 +646,7 @@ Exception: $($_.Exception.Message)
   $Results
 }
 function Invoke-SPSAdminSites {
+  $currentSPServer = Get-SPServer | Where-Object -FilterScript { $_.Address -eq $env:COMPUTERNAME }
   $spCASvcInstance = $currentSPServer.ServiceInstances | Where-Object -FilterScript { $_.TypeName -eq 'Central Administration' }
   if ($spCASvcInstance.Status -eq 'Online') {
     Write-Output 'Opening All Central Admin Urls with Invoke-WebRequest, Please Wait...'

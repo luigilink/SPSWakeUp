@@ -7,12 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-Wiki Documentation in repository - Add :
-wiki/Home.md
-wiki/Getting-Started.md
-wiki/Configuration.md
-wiki/Usage.md
-.github/workflows/wiki.yml
+Wiki Documentation in repository - Add:
+wiki\Home.md
+wiki\Getting-Started.md
+wiki\Configuration.md
+wiki\Usage.md
+.github\workflows\wiki.yml
+Module SPSWakeUP.Util for functions:
+.\Modules\SPSWakeUP.Util.psm1
 
 ### Changed
 
