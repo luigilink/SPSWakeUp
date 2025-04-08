@@ -1,4 +1,35 @@
-﻿<#
+﻿<#PSScriptInfo
+    .VERSION 3.0.3
+
+    .GUID 1fc873b1-5854-46cb-8632-29cee879bb55
+
+    .AUTHOR luigilink (Jean-Cyril DROUHIN)
+
+    .COPYRIGHT
+
+    .TAGS
+    script powershell sharepoint warmup
+
+    .LICENSEURI
+    https://github.com/luigilink/SPSWakeUp/blob/main/LICENSE
+
+    .PROJECTURI
+    https://github.com/luigilink/SPSWakeUp
+
+    .ICONURI
+
+    .EXTERNALMODULEDEPENDENCIES 
+
+    .REQUIREDSCRIPTS
+
+    .EXTERNALSCRIPTDEPENDENCIES
+
+    .RELEASENOTES
+
+    .PRIVATEDATA
+#>
+
+<#
     .SYNOPSIS
     SPSWakeUP script for SharePoint OnPremises
 
@@ -46,12 +77,12 @@
     FileName:	SPSWakeUP.ps1
     Authors:	luigilink (Jean-Cyril DROUHIN)
                 Nutsoft (Des Finkenzeller)
-    Date:		December 16, 2024
-    Version:	3.0.2
+    Date:		April 08, 2025
+    Version:	3.0.3
     Licence:	MIT License
 
     .LINK
-    https://spwakeup.com/
+    https://spjc.fr/
     https://github.com/luigilink/spswakeup
 #>
 param
@@ -85,7 +116,7 @@ Clear-Host
 $Host.UI.RawUI.WindowTitle = "WarmUP script running on $env:COMPUTERNAME"
 
 # Define variable
-$spsWakeupVersion = '3.0.2'
+$spsWakeupVersion = '3.0.3'
 $currentUser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
 $scriptRootPath = Split-Path -parent $MyInvocation.MyCommand.Definition
 $hostEntries = New-Object -TypeName System.Collections.Generic.List[string]
@@ -102,7 +133,7 @@ if ($Transcript) {
 if ($Install) {
     if ($null -eq $InstallAccount) {
         Write-Warning -Message ('SPSWakeUp: Install parameter is set. Please set also InstallAccount ' + `
-                "parameter. `nSee https://spwakeup.com for details.")
+                "parameter. `nSee https://github.com/luigilink/SPSWakeUp/wiki for details.")
         Break
     }
     else {
