@@ -35,3 +35,10 @@ jobs:
           files: |
             LICENSE
             SPSWakeUp-${{ github.ref_name }}.zip
+      # Publish script to PSGallery
+      - name: Publish to PowerShell Gallery
+        id: publish_psgallery
+        uses: actions/checkout@v4
+        run: |
+          Publish-Module -Path ./scripts/SPSWakeUP.ps1 -NuGetApiKey ${{ secrets.PSGALLERYKEY }} -Repository PSGallery -Force -Verbose
+        shell: pwsh
