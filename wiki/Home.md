@@ -8,16 +8,17 @@ SPSWakeUp is a PowerShell script tool to warm up all site collection in your Sha
 - **Multi-Threading** for better performance => Execution time can be divide per 4 (depends of CPU Number)
 - Better performance with **output-cache** for Publishing Site
 - **HSNC** Host Named Site Collection
-- Disable Loop Back Check - Secure Mode (backconnectionhostnames)
+- Disable Loop Back Check
 - **Automatic Installation** in Task Scheduler
 
-Use WebRequest from System.Net.HttpWebRequest to download JS, CSS and Pictures files, Log script results in log file, Email nofications, Configure automatically prerequisites for a best warm-up.
+Use WebRequest from System.Net.HttpWebRequest to download JS, CSS and Pictures files, Log script results in log file, Configure automatically prerequisites for a best warm-up.
 
 This current version supports FBA and Windows Authentication (Claims, NTLM and Kerberos).
 
-For details on usage, configuration, and parameters, explore the links below:
+For details on installation, features, and parameters, explore the links below:
 
 - [Getting Started](./Getting-Started)
+- [Features](./Features)
 - [Usage](./Usage)
 
 > [!IMPORTANT]
