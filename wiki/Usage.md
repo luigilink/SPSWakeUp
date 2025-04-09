@@ -14,45 +14,42 @@
 
 The script supports the following parameters:
 
-| Parameter         | Description                                                                                                                                                 |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `-Install`        | (Optional) Use the switch Install parameter if you want to add the warmup script in taskscheduler. InstallAccount parameter need to be set.                 |
-| `-InstallAccount` | (Optional) Need parameter InstallAccount whent you use the switch Install parameter.                                                                        |
-| `-Uninstall`      | (Optional) Use the switch Uninstall parameter if you want to remove the warmup script from taskscheduler.                                                   |
-| `-AllSites`       | (Optional) Use the boolean AllSites parameter if you want to warmup the SPWebs of each site collection and only warmup the root web of the site collection. |
-| `-AdminSites`     | (Optional) Use the boolean AdminSites parameter if you want to warmup the Central Administration Site collection.                                           |
-| `-Transcript`     | (Optional) Use the boolean Transcript parameter if you want to start Transcrit PowerShell Feature.                                                          |
+| Parameter         | Description                                                                                                                                                                                                                                                                                                                                                                    |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `-Action`         | (Optional) Use the Action parameter equal to Install if you want to add the warmup script in taskscheduler, InstallAccount parameter need to be set. Use the Action parameter equal to Uninstall if you want to remove the warmup script from taskscheduler. Use the Action parameter equal to AdminSitesOnly if you want to warmup the Central Administration Site collection |
+| `-InstallAccount` | (Optional) Need parameter InstallAccount whent you use the Action parameter equal to Install.                                                                                                                                                                                                                                                                                  |
+| `-Transcript`     | (Optional) Use the boolean Transcript parameter if you want to start Transcrit PowerShell Feature.                                                                                                                                                                                                                                                                             |
 
 ## Examples
 
 ### Example 1: Wake up central admin site
 
 ```powershell
-.\SPSWakeUp.ps1 -AdminSites:$True
+.\SPSWakeUP.ps1 -Action AdminSitesOnly
 ```
 
 ### Example 2: Wake up all sites
 
 ```powershell
-.\SPSWakeUp.ps1 -AllSites:$True
+.\SPSWakeUP.ps1
 ```
 
 ### Example 3: Install script in Task Scheduler
 
 ```powershell
-.\SPSWakeUp.ps1 -Install -InstallAccount (Get-Credential)
+.\SPSWakeUP.ps1 -Action Install -InstallAccount (Get-Credential)
 ```
 
 ### Example 4: Uninstall script in Task Scheduler
 
 ```powershell
-.\SPSWakeUp.ps1 -Uninstall
+.\SPSWakeUP.ps1 -Action Uninstall
 ```
 
 ### Example 5: Enable Transcript
 
 ```powershell
-.\SPSWakeUp.ps1 -Transcript:$True
+.\SPSWakeUP.ps1 -Transcript:$True
 ```
 
 ## Logging

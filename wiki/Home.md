@@ -1,4 +1,4 @@
-# SPSWakeUp - SharePoint Trust Farm Tool
+# SPSWakeUp - Wake Up Your SharePoint
 
 SPSWakeUp is a PowerShell script tool to warm up all site collection in your SharePoint environment.
 
@@ -19,3 +19,9 @@ For details on usage, configuration, and parameters, explore the links below:
 
 - [Getting Started](./Getting-Started)
 - [Usage](./Usage)
+
+> [!IMPORTANT]
+> For previous version of SPSWakeUp like 3.x, explore the links below:
+>
+> - [Getting Started](./Getting-Started-Archive)
+> - [Usage](./Usage-Archive)

@@ -1,26 +1,41 @@
 # SPSWakeUp - Release Notes
 
-## [3.0.3]- 2025-04-09
+## [4.0.0] - 2025-04-09
 
 ### Added
 
 Wiki Documentation in repository - Add:
 
-- wiki\Home.md
-- wiki\Getting-Started.md
-- wiki\Usage.md
-- .github\workflows\wiki.yml
+- wiki\Getting-Started-Archive.md
+- wiki\Usage-Archive.md
 
 ### Changed
 
+Wiki Documentation in repository - Update with new parameters:
+
+- wiki\Getting-Started.md
+- wiki\Usage.md
+
 SPSWakeUP.ps1:
 
-- Add PSScriptInfo for PSGallery
-- Remove spwakeup.com url or update with github project url
+- BREAKING CHANGE - Add new parameter Action
+- Add new function:
 
-### Fixed
+  - Add-SPSWakeUpEvent | Logs events to the Windows Event Viewer under a custom log named SPSWakeUp.
+  - Get-SPSInstalledProductVersion | Retrieves the version of the installed SharePoint product by checking the Microsoft.SharePoint.dll file.
+  - Install-SPSWakeUP | Installs the SPSWakeUp script by creating a scheduled task and configuring necessary permissions for the specified user.
+  - Invoke-SPSWebRequest | Sends HTTP requests to SharePoint URLs in a multi-threaded manner to warm up the sites.
+  - Invoke-SPSAdminSites | Sends HTTP requests to SharePoint Admin URLs to warms up SharePoint Central Administration site Pages.
 
-Script published in PS Gallery #16 as suggested by DennisL68 in ([issue #16](https://github.com/luigilink/SPSWakeUp/issues/16))
+- BREAKING CHANGE - Remove function:
+
+  - Write-LogException
+  - Add-PSSharePoint
+
+- BREAKING CHANGE - Rename function:
+
+  - Add-SPSTask => Add-SPSSheduledTask
+  - Remove-SPSTask => Remove-SPSSheduledTask
 
 ## Changelog
 

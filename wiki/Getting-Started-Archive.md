@@ -1,4 +1,4 @@
-# Getting Started
+# Getting Started (for previous version of SPSWakeUp like 3.x)
 
 ## Prerequisites
 
@@ -22,12 +22,12 @@ Install-Script -Name SPSWakeUP -Verbose
 Run the script with the following command:
 
 ```powershell
-.\SPSWakeUp.ps1 -Action Install -InstallAccount (Get-Credential)
+.\SPSWakeUp.ps1 -Install -InstallAccount (Get-Credential)
 ```
 
 ## Next Step
 
-For the next steps, go to the [Usage](./Usage) page.
+For the next steps, go to the [Usage](./Usage-Archive) page.
 
 ## Change log
 
