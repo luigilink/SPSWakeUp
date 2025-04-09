@@ -39,5 +39,5 @@ jobs:
       - name: Publish to PowerShell Gallery
         id: publish_psgallery
         run: |
-          Publish-Module -Path ./scripts/SPSWakeUP.ps1 -NuGetApiKey ${{ secrets.PSGALLERYKEY }} -Repository PSGallery -Force -Verbose
+          Publish-Script -Path "./scripts/SPSWakeUP.ps1" -NuGetApiKey ${{ secrets.PSGALLERYKEY }} -Repository PSGallery -Force -Verbose
         shell: pwsh
