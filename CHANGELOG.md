@@ -3,21 +3,27 @@
 The format is based on and uses the types of changes according to [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.0.3]- 2025-04-09
 
 ### Added
 
 Wiki Documentation in repository - Add:
-wiki\Home.md
-wiki\Getting-Started.md
-wiki\Usage.md
-.github\workflows\wiki.yml
+
+- wiki\Home.md
+- wiki\Getting-Started.md
+- wiki\Usage.md
+- .github\workflows\wiki.yml
 
 ### Changed
 
-- SPSWakeUP.ps1:
-  - Add PSScriptInfo for PSGallery
-  - Remove spwakeup.com url or update with github project url
+SPSWakeUP.ps1:
+
+- Add PSScriptInfo for PSGallery
+- Remove spwakeup.com url or update with github project url
+
+### Fixed
+
+Script published in PS Gallery #16 as suggested by DennisL68 in ([issue #16](https://github.com/luigilink/SPSWakeUp/issues/16))
 
 ## [3.0.2] - 2024-12-16
 

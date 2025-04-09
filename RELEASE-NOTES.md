@@ -1,26 +1,26 @@
 # SPSWakeUp - Release Notes
 
-## [3.0.1] - 2024-10-10
+## [3.0.3]- 2025-04-09
 
 ### Added
 
-- README.md
-  - Add code_of_conduct.md badge
-- Add CODE_OF_CONDUCT.md file
-- Add Issue Templates files:
-  - 1_bug_report.yml
-  - 2_feature_request.yml
-  - 3_documentation_request.yml
-  - 4_improvement_request.yml
-  - config.yml
+Wiki Documentation in repository - Add:
+
+- wiki\Home.md
+- wiki\Getting-Started.md
+- wiki\Usage.md
+- .github\workflows\wiki.yml
 
 ### Changed
 
-- Rename folder Scripts to scripts
+SPSWakeUP.ps1:
+
+- Add PSScriptInfo for PSGallery
+- Remove spwakeup.com url or update with github project url
 
 ### Fixed
 
-- Increase major version to 3.x.x as suggested by DennisL68 in ([issue #17](https://github.com/luigilink/SPSWakeUp/issues/17))
+Script published in PS Gallery #16 as suggested by DennisL68 in ([issue #16](https://github.com/luigilink/SPSWakeUp/issues/16))
 
 ## Changelog
 
