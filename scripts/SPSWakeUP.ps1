@@ -276,8 +276,6 @@ function Add-SPSSheduledTask {
         $TaskTrigger1 = $TaskTriggers.Create(2)
         $TaskTrigger1.StartBoundary = $TaskDate + 'T06:00:00'
         $TaskTrigger1.DaysInterval = 1
-        $TaskTrigger1.Repetition.Duration = 'PT12H'
-        $TaskTrigger1.Repetition.Interval = 'PT1H'
         $TaskTrigger1.Enabled = $true
 
         # Add Trigger Type 8 At StartUp Delay 10M
@@ -676,7 +674,16 @@ function Invoke-SPSWebRequest {
         $iss = [system.management.automation.runspaces.initialsessionstate]::CreateDefault()
         $Pool = [runspacefactory]::CreateRunspacePool(1, $throttleLimit, $iss, $Host)
         $Pool.Open()
-
+    }
+    catch {
+        $catchMessage = @"
+An error occurred invoking CreateRunspacePool Method
+Exception: $($_.Exception.Message)
+"@
+        Write-Error -Message $catchMessage # Handle any errors during task removal
+        Add-SPSWakeUpEvent -Message $catchMessage -Source 'CreateRunspacePool' -EntryType 'Error'
+    }
+    try {
         # Initialize WebSession from First SPWebApplication object
         $webApp = Get-SpWebApplication | Select-Object -first 1
         $authentUrl = ("$($webapp.GetResponseUri('Default').AbsoluteUri)" + '_windows/default.aspx?ReturnUrl=/_layouts/15/Authenticate.aspx?Source=%2f')
@@ -687,37 +694,58 @@ function Invoke-SPSWebRequest {
             -UseBasicParsing `
             -TimeoutSec 90 `
             -UserAgent $psUserAgent
-        foreach ($Url in $Urls) {
-            $Job = [powershell]::Create().AddScript($ScriptBlock).AddParameter('Uri', $Url).AddParameter('UserAgent', $psUserAgent).AddParameter('SessionWeb', $webSession)
-            $Job.RunspacePool = $Pool
-            $Jobs += New-Object PSObject -Property @{
-                Url    = $Url
-                Pipe   = $Job
-                Result = $Job.BeginInvoke()
-            }
-        }
-
-        While ($Jobs.Result.IsCompleted -contains $false) {
-            Start-Sleep -S 1
-        }
-
-        $Results = @()
-        foreach ($Job in $Jobs) {
-            $Results += $Job.Pipe.EndInvoke($Job.Result)
-        }
-
     }
     catch {
         $catchMessage = @"
-An error occurred invoking multi-threading function
+An error occurred invoking Invoke-WebRequest Function
 Exception: $($_.Exception.Message)
 "@
         Write-Error -Message $catchMessage # Handle any errors during task removal
-        Add-SPSWakeUpEvent -Message $catchMessage -Source 'Invoke-SPSWebRequest' -EntryType 'Error'
+        Add-SPSWakeUpEvent -Message $catchMessage -Source 'Invoke-WebRequest' -EntryType 'Error'
+    }
+    foreach ($Url in $Urls) {
+        try {
+            if (-not([string]::IsNullOrEmpty($Url))) {
+                $Job = [powershell]::Create().AddScript($ScriptBlock).AddParameter('Uri', $Url).AddParameter('UserAgent', $psUserAgent).AddParameter('SessionWeb', $webSession)
+                $Job.RunspacePool = $Pool
+                $Jobs += New-Object PSObject -Property @{
+                    Url    = $Url
+                    Pipe   = $Job
+                    Result = $Job.BeginInvoke()
+                }
+            }
+        }
+        catch {
+            $catchMessage = @"
+An error occurred invoking Create Method for Url: $($Url)
+Exception: $($_.Exception.Message)
+"@
+            Write-Error -Message $catchMessage # Handle any errors during task removal
+            Add-SPSWakeUpEvent -Message $catchMessage -Source 'Invoke-SPSWebRequest' -EntryType 'Error'
+        }
+
     }
 
-    Finally {
-        $Pool.Dispose()
+    While ($Jobs.Result.IsCompleted -contains $false) {
+        Start-Sleep -S 1
+    }
+
+    $Results = @()
+    foreach ($Job in $Jobs) {
+        try {
+            $Results += $Job.Pipe.EndInvoke($Job.Result)
+        }
+        catch {
+            $catchMessage = @"
+An error occurred invoking Job Pipe EndInvoke Method for Url: $($Job.Url)
+Exception: $($_.Exception.Message)
+"@
+            Write-Error -Message $catchMessage # Handle any errors during task removal
+            Add-SPSWakeUpEvent -Message $catchMessage -Source 'Invoke-SPSWebRequest' -EntryType 'Error'
+        }
+        Finally {
+            $Pool.Dispose()
+        }
     }
     $Results
 }
@@ -728,12 +756,14 @@ function Invoke-SPSAdminSites {
         $fqdn = "$($env:COMPUTERNAME).$domain"
         $serviceInstance = Get-SPServiceInstance -Server $fqdn
     }
+
     if ($null -ne $serviceInstance) {
         $serviceInstance = $serviceInstance | Where-Object -FilterScript {
             $_.GetType().Name -eq "SPWebServiceInstance" -and
             $_.Name -eq "WSS_Administration"
         }
     }
+
     if ($null -ne $serviceInstance) {
         Write-Output 'Opening All Central Admin Urls with Invoke-WebRequest, Please Wait...'
         $getSPADMSites = Get-SPSAdminUrl
