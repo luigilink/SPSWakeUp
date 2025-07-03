@@ -3,22 +3,22 @@
 The format is based on and uses the types of changes according to [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [4.0.1] - 2025-07-03
 
 ### Changed
 
-SPSWakeUP.ps1
+SPSWakeUP.ps1:
 
 - Add Try-Catch exception in Invoke-SPSWebRequest function
 - Remove $TaskTrigger1.Repetition.Duration and $TaskTrigger1.Repetition.Interval
 
-ISSUE_TEMPLATE
+ISSUE_TEMPLATE:
 
 - Add missing versions in 1_bug_report.yml file
 
 ### Fixed
 
-SPSWakeUP.ps1
+SPSWakeUP.ps1:
 
 - Resolve Error 503 Server Unavailable during Invoke-WebRequest with topology.svc
   ([issue #20](https://github.com/luigilink/SPSWakeUp/issues/20)).
