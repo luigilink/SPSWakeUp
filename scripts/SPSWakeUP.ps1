@@ -559,8 +559,6 @@ function Get-SPSSitesUrl {
                 }
             }
         }
-        # Add Topology.svc in ArrayList Object
-        [void]$tbSitesURL.Add('http://localhost:32843/Topology/topology.svc')
         return $tbSitesURL
     }
     catch {
