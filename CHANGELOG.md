@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Resolve Error 503 Server Unavailable during Invoke-WebRequest with topology.svc
   ([issue #20](https://github.com/luigilink/SPSWakeUp/issues/20)).
+- Resolve No Central Admin Service Instance running on server
+  ([issue #22](https://github.com/luigilink/SPSWakeUp/issues/22)).
 
 ## [4.0.0] - 2025-04-09
 
