@@ -1,41 +1,26 @@
 # SPSWakeUp - Release Notes
 
-## [4.0.0] - 2025-04-09
-
-### Added
-
-Wiki Documentation in repository - Add:
-
-- wiki\Getting-Started-Archive.md
-- wiki\Usage-Archive.md
+## [4.0.1] - 2025-07-03
 
 ### Changed
 
-Wiki Documentation in repository - Update with new parameters:
+SPSWakeUP.ps1:
 
-- wiki\Getting-Started.md
-- wiki\Usage.md
+- Add Try-Catch exception in Invoke-SPSWebRequest function
+- Remove $TaskTrigger1.Repetition.Duration and $TaskTrigger1.Repetition.Interval
+
+ISSUE_TEMPLATE:
+
+- Add missing versions in 1_bug_report.yml file
+
+### Fixed
 
 SPSWakeUP.ps1:
 
-- BREAKING CHANGE - Add new parameter Action
-- Add new function:
-
-  - Add-SPSWakeUpEvent | Logs events to the Windows Event Viewer under a custom log named SPSWakeUp.
-  - Get-SPSInstalledProductVersion | Retrieves the version of the installed SharePoint product by checking the Microsoft.SharePoint.dll file.
-  - Install-SPSWakeUP | Installs the SPSWakeUp script by creating a scheduled task and configuring necessary permissions for the specified user.
-  - Invoke-SPSWebRequest | Sends HTTP requests to SharePoint URLs in a multi-threaded manner to warm up the sites.
-  - Invoke-SPSAdminSites | Sends HTTP requests to SharePoint Admin URLs to warms up SharePoint Central Administration site Pages.
-
-- BREAKING CHANGE - Remove function:
-
-  - Write-LogException
-  - Add-PSSharePoint
-
-- BREAKING CHANGE - Rename function:
-
-  - Add-SPSTask => Add-SPSSheduledTask
-  - Remove-SPSTask => Remove-SPSSheduledTask
+- Resolve Error 503 Server Unavailable during Invoke-WebRequest with topology.svc
+  ([issue #20](https://github.com/luigilink/SPSWakeUp/issues/20)).
+- Resolve No Central Admin Service Instance running on server
+  ([issue #22](https://github.com/luigilink/SPSWakeUp/issues/22)).
 
 ## Changelog
 
