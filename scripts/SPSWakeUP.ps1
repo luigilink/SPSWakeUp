@@ -722,9 +722,19 @@ Exception: $($_.Exception.Message)
     $Results
 }
 function Invoke-SPSAdminSites {
-    $currentSPServer = Get-SPServer | Where-Object -FilterScript { $_.Address -eq $env:COMPUTERNAME }
-    $spCASvcInstance = $currentSPServer.ServiceInstances | Where-Object -FilterScript { $_.TypeName -eq 'Central Administration' }
-    if ($spCASvcInstance.Status -eq 'Online') {
+    $serviceInstance = Get-SPServiceInstance -Server $env:COMPUTERNAME
+    if ($null -eq $serviceInstance) {
+        $domain = (Get-CimInstance -ClassName Win32_ComputerSystem).Domain
+        $fqdn = "$($env:COMPUTERNAME).$domain"
+        $serviceInstance = Get-SPServiceInstance -Server $fqdn
+    }
+    if ($null -ne $serviceInstance) {
+        $serviceInstance = $serviceInstance | Where-Object -FilterScript {
+            $_.GetType().Name -eq "SPWebServiceInstance" -and
+            $_.Name -eq "WSS_Administration"
+        }
+    }
+    if ($null -ne $serviceInstance) {
         Write-Output 'Opening All Central Admin Urls with Invoke-WebRequest, Please Wait...'
         $getSPADMSites = Get-SPSAdminUrl
         foreach ($spADMUrl in $getSPADMSites) {
