@@ -983,6 +983,97 @@ Exception: $($_.Exception.Message)
         }
     }
 }
+function Set-SPSProxySettings {
+    param(
+        [Parameter(Mandatory = $true, Position = 0)]
+        [ValidateSet('Backup', 'Disable', 'Restore', IgnoreCase = $true)]
+        [System.String]
+        $Action,
+
+        [Parameter(Position = 1)]
+        [System.String]
+        $BackupFile = "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
+    )
+
+    $regPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings'
+
+    switch ($Action) {
+        'Backup' {
+            try {
+                $proxySettings = Get-ItemProperty -Path $regPath |
+                Select-Object AutoConfigURL, ProxyEnable, ProxyServer, ProxyOverride
+
+                $proxySettings | ConvertTo-Json | Out-File -FilePath $BackupFile -Encoding UTF8
+                Write-Output "Proxy settings backed up to $BackupFile"
+            }
+            catch {
+                $catchMessage = @"
+An error occurred while saving proxy settings
+File : $BackupFile
+Exception: $($_.Exception.Message)
+"@
+                Write-Error -Message $catchMessage
+            }
+        }
+        'Disable' {
+            try {
+                $itemProperties = @('AutoConfigURL', 'ProxyServer', 'ProxyOverride')
+                Set-ItemProperty -Path $regPath -Name ProxyEnable -Value 0
+                foreach ($itemProperty in $itemProperties) {
+                    if (Get-ItemProperty -Path $regPath -Name $itemProperty -ErrorAction SilentlyContinue) {
+                        Remove-ItemProperty -Path $regPath -Name $itemProperty -ErrorAction SilentlyContinue
+                    }
+                }
+                Write-Host 'All proxy settings disabled.'
+            }
+            catch {
+                $catchMessage = @"
+An error occurred while disabling proxy settings
+Exception: $($_.Exception.Message)
+"@
+                Write-Error -Message $catchMessage
+            }
+        }
+        'Restore' {
+            if (Test-Path $BackupFile) {
+                try {
+                    $proxySettings = Get-Content $BackupFile | ConvertFrom-Json
+                    Set-ItemProperty -Path $regPath -Name ProxyEnable -Value $proxySettings.ProxyEnable
+                    if ($proxySettings.ProxyServer) {
+                        Set-ItemProperty -Path $regPath -Name ProxyServer -Value $proxySettings.ProxyServer
+                    }
+                    else {
+                        Remove-ItemProperty -Path $regPath -Name ProxyServer -ErrorAction SilentlyContinue
+                    }
+                    if ($proxySettings.AutoConfigURL) {
+                        Set-ItemProperty -Path $regPath -Name AutoConfigURL -Value $proxySettings.AutoConfigURL
+                    }
+                    else {
+                        Remove-ItemProperty -Path $regPath -Name AutoConfigURL -ErrorAction SilentlyContinue
+                    }
+                    if ($proxySettings.ProxyOverride) {
+                        Set-ItemProperty -Path $regPath -Name ProxyOverride -Value $proxySettings.ProxyOverride
+                    }
+                    else {
+                        Remove-ItemProperty -Path $regPath -Name ProxyOverride -ErrorAction SilentlyContinue
+                    }
+                    Write-Host "Proxy settings restored from $BackupFile"
+                }
+                catch {
+                    $catchMessage = @"
+An error occurred while restoring proxy settings
+File : $BackupFile
+Exception: $($_.Exception.Message)
+"@
+                    Write-Error -Message $catchMessage
+                }
+            }
+            else {
+                Write-Host "Backup file not found at $BackupFile"
+            }
+        }
+    }
+}
 #endregion
 
 #region initialize SharePoint Context
@@ -1046,15 +1137,29 @@ switch ($Action) {
         }
     }
     'AdminSitesOnly' {
+        # Backup current Proxy Settings and Disable them
+        Set-SPSProxySettings -Action 'Backup' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
+        Set-SPSProxySettings -Action 'Disable'
+
         # Invoke-WebRequest on Central Admin if Action parameter equal to AdminSitesOnly
         Invoke-SPSAdminSites
+
+        # Restore Proxy Settings
+        Set-SPSProxySettings -Action 'Restore' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
     }
     Default {
+        # Backup current Proxy Settings and Disable them
+        Set-SPSProxySettings -Action 'Backup' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
+        Set-SPSProxySettings -Action 'Disable'
+
         # Invoke-WebRequest on Central Admin if Action parameter equal to Default
         Invoke-SPSAdminSites
 
         # Invoke-WebRequest on All Web Applications Urls, Host Named Site Collection and Site Collections
         Invoke-SPSAllSites
+
+        # Restore Proxy Settings
+        Set-SPSProxySettings -Action 'Restore' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
     }
 }
 
