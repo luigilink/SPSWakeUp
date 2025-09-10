@@ -20,6 +20,7 @@ SPSWakeUP.ps1:
 - Use $PSScriptRoot instead of $MyInvocation.MyCommand.Definition
 - Use [System.Diagnostics.FileVersionInfo]::GetVersionInfo instead of Get-Command
 - Use Exit instead of Break
+- Remove UseBasicParsing param in Invoke-WebRequest CmdLet ([issue #27](https://github.com/luigilink/SPSWakeUp/issues/27)).
 
 ## [4.0.1] - 2025-07-03
 
