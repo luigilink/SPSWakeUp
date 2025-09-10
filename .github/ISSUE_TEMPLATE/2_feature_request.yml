@@ -10,7 +10,6 @@ body:
     attributes:
       value: |
         Thanks for suggesting a feature or improvement! Please provide as much detail as possible.
-
   - type: input
     id: contact
     attributes:
@@ -19,7 +18,6 @@ body:
       placeholder: ex. email@example.com
     validations:
       required: false
-
   - type: textarea
     id: feature-description
     attributes:
@@ -28,7 +26,6 @@ body:
       placeholder: Describe the feature or improvement you're suggesting.
     validations:
       required: true
-
   - type: textarea
     id: potential-solutions
     attributes:
@@ -37,7 +34,6 @@ body:
       placeholder: Suggest how this could be implemented or any alternative ideas.
     validations:
       required: false
-
   - type: dropdown
     id: priority
     attributes:
@@ -50,7 +46,6 @@ body:
       default: Low
     validations:
       required: true
-
   - type: checkboxes
     id: terms
     attributes:
