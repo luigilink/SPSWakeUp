@@ -43,7 +43,6 @@ body:
         - Low
         - Medium
         - High
-      default: Low
     validations:
       required: true
   - type: checkboxes
