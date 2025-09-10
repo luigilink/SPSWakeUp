@@ -13,6 +13,14 @@ SPSWakeUP.ps1:
 
   - Set-SPSProxySettings | Backup, Disable and Restore IE Proxy Settings ([issue #26](https://github.com/luigilink/SPSWakeUp/issues/26)).
 
+### Changed
+
+SPSWakeUP.ps1:
+
+- Use $PSScriptRoot instead of $MyInvocation.MyCommand.Definition
+- Use [System.Diagnostics.FileVersionInfo]::GetVersionInfo instead of Get-Command
+- Use Exit instead of Break
+
 ## [4.0.1] - 2025-07-03
 
 ### Changed

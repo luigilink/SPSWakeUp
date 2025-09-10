@@ -96,7 +96,6 @@ param
 # Define variables
 $spsWakeupVersion = '4.0.1'
 $currentUser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
-$scriptRootPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 
 # Clear the host console
 Clear-Host
@@ -115,9 +114,9 @@ Start-Process -FilePath "$env:SystemRoot\system32\powercfg.exe" -ArgumentList '/
 # Start Transcript parameter is equal to True
 if ($Transcript) {
     # Initialize the log file full path
-    $pathLogFile = Join-Path -Path $scriptRootPath -ChildPath ('SPSWakeUP_script_' + (Get-Date -Format yyyy-MM-dd_H-mm) + '.log')
+    $pathLogFile = Join-Path -Path $PSScriptRoot -ChildPath ('SPSWakeUP_script_' + (Get-Date -Format yyyy-MM-dd_H-mm) + '.log')
     # Clean the folder of log files
-    Clear-SPSLog -path $scriptRootPath
+    Clear-SPSLog -path $PSScriptRoot
     # Start Transcript with the log file
     Start-Transcript -Path $pathLogFile -IncludeInvocationHeader
 }
@@ -191,10 +190,10 @@ function Get-SPSInstalledProductVersion {
     $pathToSearch = 'C:\Program Files\Common Files\microsoft shared\Web Server Extensions\*\ISAPI\Microsoft.SharePoint.dll'
     $fullPath = Get-Item $pathToSearch -ErrorAction SilentlyContinue | Sort-Object { $_.Directory } -Descending | Select-Object -First 1
     if ($null -eq $fullPath) {
-        throw 'SharePoint path {C:\Program Files\Common Files\microsoft shared\Web Server Extensions} does not exist'
+        Write-Error -Message 'SharePoint path {C:\Program Files\Common Files\microsoft shared\Web Server Extensions} does not exist'
     }
     else {
-        return (Get-Command $fullPath).FileVersionInfo
+        return ([System.Diagnostics.FileVersionInfo]::GetVersionInfo($fullPath.FullName)).FileVersion
     }
 }
 function Add-SPSSheduledTask {
@@ -408,7 +407,7 @@ function Install-SPSWakeUP {
     if ($null -eq $dom.Path) {
         Write-Warning -Message "Password Invalid for user:`"$UserName`""
         Add-SPSWakeUpEvent -Message "Password Invalid for user:`"$UserName`"" -Source 'SPSWakeUP' -EntryType 'Error'
-        Break
+        Exit
     }
     else {
         Write-Output "Account `"$UserName`" is valid. Adding SPSWakeUp script in Task Scheduler Service ..."
@@ -1105,7 +1104,7 @@ try {
         if ($currentSPServer.Role -eq 'Search') {
             Write-Warning -Message 'You run this script on server with Search MinRole'
             Add-SPSWakeUpEvent -Message 'Search MinRole is not supported in SPSWakeUp' -Source 'Server MinRole' -EntryType 'Warning'
-            Break
+            Exit
         }
     }
 }
@@ -1127,11 +1126,11 @@ switch ($Action) {
         if ($null -eq $InstallAccount) {
             Write-Warning -Message ('SPSWakeUp: Install parameter is set. Please set also InstallAccount ' + `
                     "parameter. `nSee https://github.com/luigilink/SPSWakeUp/wiki for details.")
-            Break
+            Exit
         }
         else {
             # Initialize variables
-            $scriptFullPath = Join-Path -Path $scriptRootPath -ChildPath 'SPSWakeUP.ps1'
+            $scriptFullPath = Join-Path -Path $PSScriptRoot -ChildPath 'SPSWakeUP.ps1'
             # Add SPSWakeup script in a new scheduled Task
             Install-SPSWakeUP -Path $scriptFullPath -InstallAccount $InstallAccount
         }
