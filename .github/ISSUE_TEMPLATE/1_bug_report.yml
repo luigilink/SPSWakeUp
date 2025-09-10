@@ -33,12 +33,10 @@ body:
       label: Version
       description: What version of our software are you running?
       options:
-        - 4.0.0
-        - 3.0.3
-        - 3.0.2
-        - 3.0.1
-        - 2.7.2
-        - 2.7.1
+        - 4.1.x
+        - 4.0.x
+        - 3.0.x
+        - 2.7.x
         - Other
       default: 0
     validations:

@@ -1,5 +1,5 @@
 ﻿<#PSScriptInfo
-    .VERSION 4.0.1
+    .VERSION 4.1.0
 
     .GUID 1fc873b1-5854-46cb-8632-29cee879bb55
 
@@ -68,8 +68,8 @@
     FileName:	SPSWakeUP.ps1
     Authors:	luigilink (Jean-Cyril DROUHIN)
                 Nutsoft (Des Finkenzeller)
-    Date:		July 03, 2025
-    Version:	4.0.1
+    Date:		September 10, 2025
+    Version:	4.1.0
     Licence:	MIT License
 
     .LINK
@@ -94,7 +94,7 @@ param
 
 #region Initialization
 # Define variables
-$spsWakeupVersion = '4.0.1'
+$spsWakeupVersion = '4.1.0'
 $currentUser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
 
 # Clear the host console

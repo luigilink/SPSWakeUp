@@ -1,26 +1,25 @@
 # SPSWakeUp - Release Notes
 
-## [4.0.1] - 2025-07-03
+## [4.1.0] - 2025-09-10
+
+### Added
+
+SPSWakeUP.ps1:
+
+- Add new function:
+
+  - Set-SPSProxySettings | Backup, Disable and Restore IE Proxy Settings ([issue #26](https://github.com/luigilink/SPSWakeUp/issues/26)).
+
+Add README.md file for Installation guide in package release ([issue #25](https://github.com/luigilink/SPSWakeUp/issues/25)).
 
 ### Changed
 
 SPSWakeUP.ps1:
 
-- Add Try-Catch exception in Invoke-SPSWebRequest function
-- Remove $TaskTrigger1.Repetition.Duration and $TaskTrigger1.Repetition.Interval
-
-ISSUE_TEMPLATE:
-
-- Add missing versions in 1_bug_report.yml file
-
-### Fixed
-
-SPSWakeUP.ps1:
-
-- Resolve Error 503 Server Unavailable during Invoke-WebRequest with topology.svc
-  ([issue #20](https://github.com/luigilink/SPSWakeUp/issues/20)).
-- Resolve No Central Admin Service Instance running on server
-  ([issue #22](https://github.com/luigilink/SPSWakeUp/issues/22)).
+- Use $PSScriptRoot instead of $MyInvocation.MyCommand.Definition
+- Use [System.Diagnostics.FileVersionInfo]::GetVersionInfo instead of Get-Command
+- Use Exit instead of Break
+- Remove UseBasicParsing param in Invoke-WebRequest CmdLet ([issue #27](https://github.com/luigilink/SPSWakeUp/issues/27)).
 
 ## Changelog
 
