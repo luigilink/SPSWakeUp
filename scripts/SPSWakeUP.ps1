@@ -632,19 +632,17 @@ function Invoke-SPSWebRequest {
         Process {
             try {
                 $startProcess = Get-Date
-                if ($null -ne $sessionWeb) {
-                    $webResponse = Invoke-WebRequest -Uri $uri `
-                        -WebSession $sessionWeb `
+                if ($null -ne $SessionWeb) {
+                    $webResponse = Invoke-WebRequest -Uri $Uri `
+                        -WebSession $SessionWeb `
                         -TimeoutSec 90 `
-                        -UserAgent $useragent `
-                        -UseBasicParsing
+                        -UserAgent $Useragent
                 }
                 else {
-                    $webResponse = Invoke-WebRequest -Uri $uri `
+                    $webResponse = Invoke-WebRequest -Uri $Uri `
                         -UseDefaultCredentials `
                         -TimeoutSec 90 `
-                        -UserAgent $useragent `
-                        -UseBasicParsing
+                        -UserAgent $Useragent
                 }
                 $timeExec = '{0:N2}' -f (((Get-Date) - $startProcess).TotalSeconds)
                 $Response = "$([System.int32]$webResponse.StatusCode) - $($webResponse.StatusDescription)"
@@ -659,7 +657,7 @@ function Invoke-SPSWebRequest {
                 }
             }
             $RunResult = New-Object PSObject
-            $RunResult | Add-Member -MemberType NoteProperty -Name Url -Value $uri
+            $RunResult | Add-Member -MemberType NoteProperty -Name Url -Value $Uri
             $RunResult | Add-Member -MemberType NoteProperty -Name 'Time(s)' -Value $TimeExec
             $RunResult | Add-Member -MemberType NoteProperty -Name Status -Value $Response
             $RunResult
@@ -690,7 +688,6 @@ Exception: $($_.Exception.Message)
         Invoke-WebRequest -Uri $authentUrl `
             -SessionVariable webSession `
             -UseDefaultCredentials `
-            -UseBasicParsing `
             -TimeoutSec 90 `
             -UserAgent $psUserAgent
     }
@@ -742,10 +739,8 @@ Exception: $($_.Exception.Message)
             Write-Error -Message $catchMessage # Handle any errors during task removal
             Add-SPSWakeUpEvent -Message $catchMessage -Source 'Invoke-SPSWebRequest' -EntryType 'Error'
         }
-        Finally {
-            $Pool.Dispose()
-        }
     }
+    $Pool.Dispose()
     $Results
 }
 function Invoke-SPSAdminSites {
@@ -769,7 +764,13 @@ function Invoke-SPSAdminSites {
         foreach ($spADMUrl in $getSPADMSites) {
             try {
                 $startInvoke = Get-Date
-                $webResponse = Invoke-WebRequest -Uri $spADMUrl -UseDefaultCredentials -TimeoutSec 90 -UseBasicParsing
+                $argsInvokeWebReq = @{
+                    Uri                   = $spADMUrl
+                    UseDefaultCredentials = $true
+                    TimeoutSec            = 90
+                    UserAgent             = [Microsoft.PowerShell.Commands.PSUserAgent]::Chrome
+                }
+                $webResponse = Invoke-WebRequest @argsInvokeWebReq
                 $TimeExec = '{0:N2}' -f (((Get-Date) - $startInvoke).TotalSeconds)
                 Write-Output '-----------------------------------'
                 Write-Output "| Url    : $spADMUrl"
