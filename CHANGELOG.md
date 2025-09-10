@@ -13,6 +13,8 @@ SPSWakeUP.ps1:
 
   - Set-SPSProxySettings | Backup, Disable and Restore IE Proxy Settings ([issue #26](https://github.com/luigilink/SPSWakeUp/issues/26)).
 
+Add README.md file for Installation guide in package release ([issue #25](https://github.com/luigilink/SPSWakeUp/issues/25)).
+
 ### Changed
 
 SPSWakeUP.ps1:
