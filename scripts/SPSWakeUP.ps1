@@ -744,20 +744,23 @@ Exception: $($_.Exception.Message)
     $Results
 }
 function Invoke-SPSAdminSites {
+    # Disable LoopBack Check
+    Disable-LoopbackCheck
+    # Disable IE First Run
+    Disable-IEFirsRun
+    # Get Central Administration Service Instance
     $serviceInstance = Get-SPServiceInstance -Server $env:COMPUTERNAME
     if ($null -eq $serviceInstance) {
         $domain = (Get-CimInstance -ClassName Win32_ComputerSystem).Domain
         $fqdn = "$($env:COMPUTERNAME).$domain"
         $serviceInstance = Get-SPServiceInstance -Server $fqdn
     }
-
     if ($null -ne $serviceInstance) {
         $serviceInstance = $serviceInstance | Where-Object -FilterScript {
             $_.GetType().Name -eq "SPWebServiceInstance" -and
             $_.Name -eq "WSS_Administration"
         }
     }
-
     if ($null -ne $serviceInstance) {
         Write-Output 'Opening All Central Admin Urls with Invoke-WebRequest, Please Wait...'
         $getSPADMSites = Get-SPSAdminUrl
@@ -811,6 +814,8 @@ function Invoke-SPSAllSites {
         if ($hostEntries) {
             # Disable LoopBack Check
             Disable-LoopbackCheck
+            # Disable IE First Run
+            Disable-IEFirsRun
             # Remove Duplicate Entries
             $hostEntries = $hostEntries | Get-Unique
             # Initialize variables
@@ -891,6 +896,17 @@ function Disable-LoopbackCheck {
     }
     else {
         Write-Output 'Loopback Check already Disabled - skipping.'
+    }
+}
+function Disable-IEFirsRun {
+    $iefirstrunPath = 'HKCU:\Software\Microsoft\Internet Explorer\Main'
+    $iefirstrunPathValue = Get-ItemProperty -path $iefirstrunPath
+    if (-not ($iefirstrunPathValue.DisableFirstRunCustomize -eq '1')) {
+        Write-Output 'Disabling IE First Run...'
+        New-ItemProperty -Path $iefirstrunPath -Name 'DisableFirstRunCustomize' -value '1' -PropertyType dword -Force | Out-Null
+    }
+    else {
+        Write-Output 'IE First Run already Disabled - skipping.'
     }
 }
 function Clear-HostsFileCopy {
