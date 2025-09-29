@@ -1,5 +1,5 @@
 ﻿<#PSScriptInfo
-    .VERSION 4.1.0
+    .VERSION 4.1.1
 
     .GUID 1fc873b1-5854-46cb-8632-29cee879bb55
 
@@ -69,7 +69,7 @@
     Authors:	luigilink (Jean-Cyril DROUHIN)
                 Nutsoft (Des Finkenzeller)
     Date:		September 10, 2025
-    Version:	4.1.0
+    Version:	4.1.1
     Licence:	MIT License
 
     .LINK
@@ -94,7 +94,7 @@ param
 
 #region Initialization
 # Define variables
-$spsWakeupVersion = '4.1.0'
+$spsWakeupVersion = '4.1.1'
 $currentUser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
 
 # Clear the host console

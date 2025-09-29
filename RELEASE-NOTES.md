@@ -1,25 +1,14 @@
 # SPSWakeUp - Release Notes
 
-## [4.1.0] - 2025-09-10
+## [4.1.1] - 2025-09-29
 
-### Added
+### Fixed
 
 SPSWakeUP.ps1:
 
 - Add new function:
 
-  - Set-SPSProxySettings | Backup, Disable and Restore IE Proxy Settings ([issue #26](https://github.com/luigilink/SPSWakeUp/issues/26)).
-
-Add README.md file for Installation guide in package release ([issue #25](https://github.com/luigilink/SPSWakeUp/issues/25)).
-
-### Changed
-
-SPSWakeUP.ps1:
-
-- Use $PSScriptRoot instead of $MyInvocation.MyCommand.Definition
-- Use [System.Diagnostics.FileVersionInfo]::GetVersionInfo instead of Get-Command
-- Use Exit instead of Break
-- Remove UseBasicParsing param in Invoke-WebRequest CmdLet ([issue #27](https://github.com/luigilink/SPSWakeUp/issues/27)).
+  - Disable-IEFirsRun | Add registry key DisableFirstRunCustomize ([issue #32](https://github.com/luigilink/SPSWakeUp/issues/32)).
 
 ## Changelog
 
