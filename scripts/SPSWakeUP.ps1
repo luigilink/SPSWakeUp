@@ -636,13 +636,15 @@ function Invoke-SPSWebRequest {
                     $webResponse = Invoke-WebRequest -Uri $Uri `
                         -WebSession $SessionWeb `
                         -TimeoutSec 90 `
-                        -UserAgent $Useragent
+                        -UserAgent $Useragent `
+                        -UseBasicParsing
                 }
                 else {
                     $webResponse = Invoke-WebRequest -Uri $Uri `
                         -UseDefaultCredentials `
                         -TimeoutSec 90 `
-                        -UserAgent $Useragent
+                        -UserAgent $Useragent `
+                        -UseBasicParsing
                 }
                 $timeExec = '{0:N2}' -f (((Get-Date) - $startProcess).TotalSeconds)
                 $Response = "$([System.int32]$webResponse.StatusCode) - $($webResponse.StatusDescription)"
@@ -689,7 +691,8 @@ Exception: $($_.Exception.Message)
             -SessionVariable webSession `
             -UseDefaultCredentials `
             -TimeoutSec 90 `
-            -UserAgent $psUserAgent
+            -UserAgent $psUserAgent `
+            -UseBasicParsing
     }
     catch {
         $catchMessage = @"
@@ -772,6 +775,7 @@ function Invoke-SPSAdminSites {
                     UseDefaultCredentials = $true
                     TimeoutSec            = 90
                     UserAgent             = [Microsoft.PowerShell.Commands.PSUserAgent]::Chrome
+                    UseBasicParsing       = $true
                 }
                 $webResponse = Invoke-WebRequest @argsInvokeWebReq
                 $TimeExec = '{0:N2}' -f (((Get-Date) - $startInvoke).TotalSeconds)
