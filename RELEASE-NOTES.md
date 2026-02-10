@@ -1,14 +1,12 @@
 # SPSWakeUp - Release Notes
 
-## [4.1.1] - 2025-09-29
+## [4.1.2] - 2026-02-10
 
 ### Fixed
 
 SPSWakeUP.ps1:
 
-- Add new function:
-
-  - Disable-IEFirsRun | Add registry key DisableFirstRunCustomize ([issue #32](https://github.com/luigilink/SPSWakeUp/issues/32)).
+- Add UseBasicParsing param in Invoke-WebRequest CmdLet ([issue #35](https://github.com/luigilink/SPSWakeUp/issues/35)).
 
 ## Changelog
 

@@ -3,6 +3,14 @@
 The format is based on and uses the types of changes according to [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.2] - 2026-02-10
+
+### Fixed
+
+SPSWakeUP.ps1:
+
+- Add UseBasicParsing param in Invoke-WebRequest CmdLet ([issue #35](https://github.com/luigilink/SPSWakeUp/issues/35)).
+
 ## [4.1.1] - 2025-09-29
 
 ### Fixed
