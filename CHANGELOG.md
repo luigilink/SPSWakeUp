@@ -3,6 +3,37 @@
 The format is based on and uses the types of changes according to [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+Implement Pester tests for script functionality, resource management, and security practices:
+
+- .github/workflows/pester.yml
+- tests/SPSWakeUP.Tests.ps1
+- tests/README.md
+
+### Fixed
+
+SPSWakeUP.ps1:
+
+- The term 'Clear-SPSLog' is not recognized as the name of a cmdlet ([issue #34](https://github.com/luigilink/SPSWakeUp/issues/34)).
+- Fix function name typo: Disable-IEFirsRun → Disable-IEFirstRun.
+- Fix undefined variable bug in Get-SPSSitesUrl by removing unused $AllSites check.
+- Fix inconsistent output methods by replacing Write-Host with Write-Output in Set-SPSProxySettings function.
+
+### Changed
+
+SPSWakeUP.ps1:
+
+- Add COM object cleanup with ReleaseComObject in Add-SPSSheduledTask and Remove-SPSSheduledTask functions to prevent memory leaks.
+- Add Remove-Variable for sensitive data (passwords, credentials) to reduce security exposure in memory.
+- Add runspace job cleanup with Pipe.Dispose() in Invoke-SPSWebRequest to prevent memory leaks in multi-threading operations.
+- Add module import check before Import-Module SharePointServer to prevent unnecessary re-imports.
+- Improve resource management with proper cleanup in finally blocks and early exit scenarios.
+
+Update release.yml to clarify workflow purpose
+
 ## [4.1.2] - 2026-02-10
 
 ### Fixed

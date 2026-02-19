@@ -1,0 +1,78 @@
+# This is the SPSWakeUp CI Pester workflow to run tests on pull requests
+
+name: SPSWakeUp CI Pester Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'scripts/**'
+      - 'tests/**'
+
+jobs:
+  test:
+    name: Run Pester Tests
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Pester
+        shell: pwsh
+        run: |
+          Install-Module -Name Pester -MinimumVersion 5.3.0 -Force -SkipPublisherCheck -Scope CurrentUser
+          Import-Module Pester
+
+      - name: Run Pester Tests
+        shell: pwsh
+        run: |
+          $config = New-PesterConfiguration
+          $config.Run.Path = './tests'
+          $config.Run.Exit = $true
+          $config.TestResult.Enabled = $true
+          $config.TestResult.OutputPath = './test-results.xml'
+          $config.Output.Verbosity = 'Detailed'
+          
+          Invoke-Pester -Configuration $config
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: test-results
+          path: test-results.xml
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action/composite@v2
+        if: always()
+        with:
+          files: |
+            test-results.xml
+          check_name: Pester Test Results
+
+  code-quality:
+    name: Code Quality Check
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Install-Module -Name PSScriptAnalyzer -Force -SkipPublisherCheck -Scope CurrentUser
+
+      - name: Run PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          $results = Invoke-ScriptAnalyzer -Path ./scripts/SPSWakeUP.ps1 -Severity Error,Warning
+          if ($results) {
+            $results | Format-Table -AutoSize
+            Write-Error "PSScriptAnalyzer found issues"
+            exit 1
+          } else {
+            Write-Host "No issues found by PSScriptAnalyzer"
+          }

@@ -69,7 +69,7 @@
     Authors:	luigilink (Jean-Cyril DROUHIN)
                 Nutsoft (Des Finkenzeller)
                 bed428 (Brian D.)
-    
+
     Date:		February 10, 2026
     Version:	4.1.2
     Licence:	MIT License
@@ -117,8 +117,6 @@ Start-Process -FilePath "$env:SystemRoot\system32\powercfg.exe" -ArgumentList '/
 if ($Transcript) {
     # Initialize the log file full path
     $pathLogFile = Join-Path -Path $PSScriptRoot -ChildPath ('SPSWakeUP_script_' + (Get-Date -Format yyyy-MM-dd_H-mm) + '.log')
-    # Clean the folder of log files
-    Clear-SPSLog -path $PSScriptRoot
     # Start Transcript with the log file
     Start-Transcript -Path $pathLogFile -IncludeInvocationHeader
 }
@@ -247,6 +245,8 @@ function Add-SPSSheduledTask {
 
     if ($getScheduledTask) {
         Write-Warning -Message 'Scheduled Task already exists - skipping.' # Task already exists
+        [System.Runtime.InteropServices.Marshal]::ReleaseComObject($TaskSvc) | Out-Null
+        Remove-Variable UserName, Password -ErrorAction SilentlyContinue
     }
     else {
         Write-Output '--------------------------------------------------------------'
@@ -314,6 +314,12 @@ Exception: $($_.Exception.Message)
             Write-Error -Message $catchMessage # Handle any errors during task registration
             Add-SPSWakeUpEvent -Message $catchMessage -Source 'Add-SPSSheduledTask' -EntryType 'Error'
         }
+        finally {
+            # Release COM objects
+            [System.Runtime.InteropServices.Marshal]::ReleaseComObject($TaskSvc) | Out-Null
+            # Remove variables
+            Remove-Variable TaskSchd, TaskSettings, TaskTriggers, TaskTrigger1, TaskTrigger2, TaskTrigger3, TaskAction, TaskAuthor, TaskUser, TaskUserPwd -ErrorAction SilentlyContinue
+        }
     }
 }
 function Remove-SPSSheduledTask {
@@ -362,6 +368,10 @@ Exception: $($_.Exception.Message)
 "@
             Write-Error -Message $catchMessage # Handle any errors during task removal
             Add-SPSWakeUpEvent -Message $catchMessage -Source 'Remove-SPSSheduledTask' -EntryType 'Error'
+        }
+        finally {
+            # Release COM objects
+            [System.Runtime.InteropServices.Marshal]::ReleaseComObject($TaskSvc) | Out-Null
         }
     }
 }
@@ -424,6 +434,8 @@ function Install-SPSWakeUP {
             Add-SPSUserPolicy -Urls $getSPWebApps -UserName $UserName
         }
     }
+    # Remove variables
+    Remove-Variable ActionArguments, UserName, Password, currentDomain, dom
 }
 function Clear-SPSLog {
     param
@@ -537,22 +549,9 @@ function Get-SPSSitesUrl {
         $webApps = Get-SPWebApplication -ErrorAction SilentlyContinue
         if ($null -ne $webApps) {
             foreach ($webApp in $webApps) {
-                $sites = $webApp.sites
-                foreach ($site in $sites) {
-                    if ($AllSites) {
-                        $webs = (Get-SPWeb -Site $site -Limit ALL -ErrorAction SilentlyContinue)
-                        if ($null -ne $webs) {
-                            foreach ($web in $webs) {
-                                if ($web.Url -notmatch 'sitemaster-') {
-                                    [void]$tbSitesURL.Add("$($web.Url)")
-                                }
-                            }
-                        }
-                    }
-                    else {
-                        if ($site.RootWeb.Url -notmatch 'sitemaster-') {
-                            [void]$tbSitesURL.Add("$($site.RootWeb.Url)")
-                        }
+                foreach ($site in $webApp.sites) {
+                    if ($site.RootWeb.Url -notmatch 'sitemaster-') {
+                        [void]$tbSitesURL.Add("$($site.RootWeb.Url)")
                     }
                     $site.Dispose()
                 }
@@ -744,6 +743,9 @@ Exception: $($_.Exception.Message)
             Write-Error -Message $catchMessage # Handle any errors during task removal
             Add-SPSWakeUpEvent -Message $catchMessage -Source 'Invoke-SPSWebRequest' -EntryType 'Error'
         }
+        finally {
+            $Job.Pipe.Dispose()
+        }
     }
     $Pool.Dispose()
     $Results
@@ -752,7 +754,7 @@ function Invoke-SPSAdminSites {
     # Disable LoopBack Check
     Disable-LoopbackCheck
     # Disable IE First Run
-    Disable-IEFirsRun
+    Disable-IEFirstRun
     # Get Central Administration Service Instance
     $serviceInstance = Get-SPServiceInstance -Server $env:COMPUTERNAME
     if ($null -eq $serviceInstance) {
@@ -821,7 +823,7 @@ function Invoke-SPSAllSites {
             # Disable LoopBack Check
             Disable-LoopbackCheck
             # Disable IE First Run
-            Disable-IEFirsRun
+            Disable-IEFirstRun
             # Remove Duplicate Entries
             $hostEntries = $hostEntries | Get-Unique
             # Initialize variables
@@ -904,7 +906,7 @@ function Disable-LoopbackCheck {
         Write-Output 'Loopback Check already Disabled - skipping.'
     }
 }
-function Disable-IEFirsRun {
+function Disable-IEFirstRun {
     $iefirstrunPath = 'HKCU:\Software\Microsoft\Internet Explorer\Main'
     $iefirstrunPathValue = Get-ItemProperty -path $iefirstrunPath
     if (-not ($iefirstrunPathValue.DisableFirstRunCustomize -eq '1')) {
@@ -1046,7 +1048,7 @@ Exception: $($_.Exception.Message)
                         Remove-ItemProperty -Path $regPath -Name $itemProperty -ErrorAction SilentlyContinue
                     }
                 }
-                Write-Host 'All proxy settings disabled.'
+                Write-Output 'All proxy settings disabled.'
             }
             catch {
                 $catchMessage = @"
@@ -1079,7 +1081,7 @@ Exception: $($_.Exception.Message)
                     else {
                         Remove-ItemProperty -Path $regPath -Name ProxyOverride -ErrorAction SilentlyContinue
                     }
-                    Write-Host "Proxy settings restored from $BackupFile"
+                    Write-Output "Proxy settings restored from $BackupFile"
                 }
                 catch {
                     $catchMessage = @"
@@ -1091,7 +1093,7 @@ Exception: $($_.Exception.Message)
                 }
             }
             else {
-                Write-Host "Backup file not found at $BackupFile"
+                Write-Output "Backup file not found at $BackupFile"
             }
         }
     }
@@ -1108,7 +1110,9 @@ try {
         }
     }
     else {
-        Import-Module SharePointServer -Verbose:$false -WarningAction SilentlyContinue -DisableNameChecking
+        if (-not (Get-Module SharePointServer)) {
+            Import-Module SharePointServer -Verbose:$false -WarningAction SilentlyContinue -DisableNameChecking
+        }
     }
 }
 catch {
@@ -1188,6 +1192,8 @@ switch ($Action) {
 # Stop Transcript parameter is equal to True
 if ($Transcript) {
     Stop-Transcript
+    # Clean the folder of log files
+    Clear-SPSLog -path $PSScriptRoot
 }
 Exit
 #endregion
