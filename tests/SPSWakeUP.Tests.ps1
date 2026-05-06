@@ -210,16 +210,13 @@ Describe 'Get-SPSSitesUrl Function' {
     Context 'Site Collection Retrieval' {
         BeforeEach {
             Mock Get-SPWebApplication {
+                $site1 = [PSCustomObject]@{
+                    RootWeb = [PSCustomObject]@{ Url = 'http://sharepoint.contoso.com' }
+                }
+                $site1 | Add-Member -MemberType ScriptMethod -Name 'Dispose' -Value {}
                 return @(
                     [PSCustomObject]@{
-                        Sites = @(
-                            [PSCustomObject]@{
-                                RootWeb = [PSCustomObject]@{
-                                    Url = 'http://sharepoint.contoso.com'
-                                }
-                                Dispose = { }
-                            }
-                        )
+                        Sites = @($site1)
                     }
                 )
             }
@@ -233,22 +230,17 @@ Describe 'Get-SPSSitesUrl Function' {
 
         It 'Should filter out sitemaster URLs' {
             Mock Get-SPWebApplication {
+                $site1 = [PSCustomObject]@{
+                    RootWeb = [PSCustomObject]@{ Url = 'http://sitemaster-contoso.com' }
+                }
+                $site1 | Add-Member -MemberType ScriptMethod -Name 'Dispose' -Value {}
+                $site2 = [PSCustomObject]@{
+                    RootWeb = [PSCustomObject]@{ Url = 'http://sharepoint.contoso.com' }
+                }
+                $site2 | Add-Member -MemberType ScriptMethod -Name 'Dispose' -Value {}
                 return @(
                     [PSCustomObject]@{
-                        Sites = @(
-                            [PSCustomObject]@{
-                                RootWeb = [PSCustomObject]@{
-                                    Url = 'http://sitemaster-contoso.com'
-                                }
-                                Dispose = { }
-                            },
-                            [PSCustomObject]@{
-                                RootWeb = [PSCustomObject]@{
-                                    Url = 'http://sharepoint.contoso.com'
-                                }
-                                Dispose = { }
-                            }
-                        )
+                        Sites = @($site1, $site2)
                     }
                 )
             }
