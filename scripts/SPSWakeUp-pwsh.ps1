@@ -1,6 +1,6 @@
 ﻿#Requires -Version 7.0
 <#PSScriptInfo
-    .VERSION 4.2.0
+    .VERSION 4.2.1
 
     .GUID 3cd095b3-7b4e-5a2f-ad8e-4f6a2b9c1d5e
 
@@ -61,7 +61,7 @@
     Authors:    luigilink (Jean-Cyril DROUHIN)
 
     Date:       May 06, 2026
-    Version:    4.2.0
+    Version:    4.2.1
     Licence:    MIT License
 
     .LINK
@@ -85,7 +85,7 @@ param
 )
 
 #region Initialization
-$spsWakeupVersion = '4.2.0'
+$spsWakeupVersion = '4.2.1'
 $currentUser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
 
 Clear-Host
