@@ -22,7 +22,7 @@ SPSWakeUP.ps1:
 - The term 'Clear-SPSLog' is not recognized as the name of a cmdlet ([issue #34](https://github.com/luigilink/SPSWakeUp/issues/34)).
 - Fix function name typo: Disable-IEFirsRun → Disable-IEFirstRun.
 - Fix undefined variable bug in Get-SPSSitesUrl by removing unused $AllSites check.
-- Fix inconsistent output methods by replacing Write-Host with Write-Output in Set-SPSProxySettings function.
+- Fix inconsistent output methods by replacing Write-Host with Write-Output in Set-SPSProxySetting function.
 - Fix bug in Remove-SPSSheduledTask where a caught exception left $TaskFolder unassigned, causing a second unhandled error on the next statement — added early return in the catch block.
 - Fix Get-SPSInstalledProductVersion returning .FileVersion string instead of the FileVersionInfo object — callers use .ProductMajorPart and .ProductBuildPart which are FileVersionInfo properties, not string properties. Returning a string caused both to resolve as $null, and $null -le 12999 evaluates to $true in PowerShell (null coerces to 0), so the SharePoint 2013 PSSnapin branch was always taken regardless of the installed version. Updated [OutputType] to [System.Diagnostics.FileVersionInfo].
 
@@ -43,6 +43,8 @@ SPSWakeUP.ps1:
 - Replace $Jobs and $Results array accumulation (@() + +=) with [System.Collections.Generic.List[object]]::new() and .Add() in Invoke-SPSWebRequest to avoid O(n²) array copy overhead on large URL sets.
 - Remove $Host.UI.RawUI.WindowTitle assignment from initialization section.
 - Remove unused Get-SPSVersion function.
+- Add [CmdletBinding(SupportsShouldProcess)] and $PSCmdlet.ShouldProcess() guards to Remove-SPSSheduledTask and Set-SPSProxySetting to satisfy PSUseShouldProcessForStateChangingFunctions and enable -WhatIf/-Confirm support.
+- Rename Invoke-SPSAdminSites → Invoke-SPSAdminSite, Invoke-SPSAllSites → Invoke-SPSAllSite, Set-SPSProxySettings → Set-SPSProxySetting to comply with PSUseSingularNouns convention.
 
 Update release.yml to clarify workflow purpose
 
@@ -72,7 +74,7 @@ SPSWakeUP.ps1:
 
 - Add new function:
 
-  - Set-SPSProxySettings | Backup, Disable and Restore IE Proxy Settings ([issue #26](https://github.com/luigilink/SPSWakeUp/issues/26)).
+  - Set-SPSProxySetting | Backup, Disable and Restore IE Proxy Settings ([issue #26](https://github.com/luigilink/SPSWakeUp/issues/26)).
 
 Add README.md file for Installation guide in package release ([issue #25](https://github.com/luigilink/SPSWakeUp/issues/25)).
 
@@ -132,7 +134,7 @@ SPSWakeUP.ps1:
   - Get-SPSInstalledProductVersion | Retrieves the version of the installed SharePoint product by checking the Microsoft.SharePoint.dll file.
   - Install-SPSWakeUP | Installs the SPSWakeUp script by creating a scheduled task and configuring necessary permissions for the specified user.
   - Invoke-SPSWebRequest | Sends HTTP requests to SharePoint URLs in a multi-threaded manner to warm up the sites.
-  - Invoke-SPSAdminSites | Sends HTTP requests to SharePoint Admin URLs to warms up SharePoint Central Administration site Pages.
+  - Invoke-SPSAdminSite | Sends HTTP requests to SharePoint Admin URLs to warms up SharePoint Central Administration site Pages.
 
 - BREAKING CHANGE - Remove function:
 

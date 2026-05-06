@@ -82,8 +82,8 @@ Describe 'SPSWakeUP Script Structure' {
             Get-Command Invoke-SPSWebRequest -ErrorAction SilentlyContinue | Should -Not -BeNullOrEmpty
         }
 
-        It 'Should define Set-SPSProxySettings function' {
-            Get-Command Set-SPSProxySettings -ErrorAction SilentlyContinue | Should -Not -BeNullOrEmpty
+        It 'Should define Set-SPSProxySetting function' {
+            Get-Command Set-SPSProxySetting -ErrorAction SilentlyContinue | Should -Not -BeNullOrEmpty
         }
 
         It 'Should define Disable-LoopbackCheck function' {
@@ -277,33 +277,33 @@ Describe 'Get-SPSSitesUrl Function' {
     }
 }
 
-Describe 'Set-SPSProxySettings Function' {
+Describe 'Set-SPSProxySetting Function' {
     
     Context 'Parameter Validation' {
         It 'Should accept Backup action' {
-            { Set-SPSProxySettings -Action 'Backup' -BackupFile "$TestDrive\proxy.json" } | Should -Not -Throw
+            { Set-SPSProxySetting -Action 'Backup' -BackupFile "$TestDrive\proxy.json" } | Should -Not -Throw
         }
 
         It 'Should accept Disable action' {
-            { Set-SPSProxySettings -Action 'Disable' } | Should -Not -Throw
+            { Set-SPSProxySetting -Action 'Disable' } | Should -Not -Throw
         }
 
         It 'Should accept Restore action' {
-            { Set-SPSProxySettings -Action 'Restore' -BackupFile "$TestDrive\proxy.json" } | Should -Not -Throw
+            { Set-SPSProxySetting -Action 'Restore' -BackupFile "$TestDrive\proxy.json" } | Should -Not -Throw
         }
 
         It 'Should reject invalid action' {
-            { Set-SPSProxySettings -Action 'Invalid' } | Should -Throw
+            { Set-SPSProxySetting -Action 'Invalid' } | Should -Throw
         }
     }
 
     Context 'Output Method' {
-        It 'Should use Write-Output in Set-SPSProxySettings' {
+        It 'Should use Write-Output in Set-SPSProxySetting' {
             $scriptPath = Join-Path -Path $PSScriptRoot -ChildPath '..\scripts\SPSWakeUP.ps1'
             $content = Get-Content $scriptPath -Raw
             
             # Check that the function uses Write-Output for proxy settings messages
-            $content | Should -Match 'function Set-SPSProxySettings'
+            $content | Should -Match 'function Set-SPSProxySetting'
             $content | Should -Match 'Write-Output.*proxy'
         }
     }

@@ -320,6 +320,7 @@ Exception: $($_.Exception.Message)
     }
 }
 function Remove-SPSSheduledTask {
+    [CmdletBinding(SupportsShouldProcess)]
     param (
         [Parameter(Mandatory = $true)]
         [System.String]
@@ -354,22 +355,24 @@ function Remove-SPSSheduledTask {
     else {
         Write-Output '--------------------------------------------------------------'
         Write-Output "Removing $($TaskName) script in Task Scheduler Service ..."
-        try {
-            $TaskFolder.DeleteTask($TaskName, $null) # Remove the task
-            Write-Output "Successfully removed $($TaskName) script from Task Scheduler Service"
-            Add-SPSWakeUpEvent -Message "Successfully removed '$TaskName' script from Task Scheduler Service" -Source 'Remove-SPSSheduledTask' -EntryType 'Information'
-        }
-        catch {
-            $catchMessage = @"
+        if ($PSCmdlet.ShouldProcess($TaskName, 'Remove scheduled task')) {
+            try {
+                $TaskFolder.DeleteTask($TaskName, $null) # Remove the task
+                Write-Output "Successfully removed $($TaskName) script from Task Scheduler Service"
+                Add-SPSWakeUpEvent -Message "Successfully removed '$TaskName' script from Task Scheduler Service" -Source 'Remove-SPSSheduledTask' -EntryType 'Information'
+            }
+            catch {
+                $catchMessage = @"
 An error occurred while removing the script in scheduled task: $($TaskName)
 Exception: $($_.Exception.Message)
 "@
-            Write-Error -Message $catchMessage # Handle any errors during task removal
-            Add-SPSWakeUpEvent -Message $catchMessage -Source 'Remove-SPSSheduledTask' -EntryType 'Error'
-        }
-        finally {
-            # Release COM objects
-            [System.Runtime.InteropServices.Marshal]::ReleaseComObject($TaskSvc) | Out-Null
+                Write-Error -Message $catchMessage # Handle any errors during task removal
+                Add-SPSWakeUpEvent -Message $catchMessage -Source 'Remove-SPSSheduledTask' -EntryType 'Error'
+            }
+            finally {
+                # Release COM objects
+                [System.Runtime.InteropServices.Marshal]::ReleaseComObject($TaskSvc) | Out-Null
+            }
         }
     }
 }
@@ -719,7 +722,7 @@ Exception: $($_.Exception.Message)
     $Pool.Dispose()
     $Results
 }
-function Invoke-SPSAdminSites {
+function Invoke-SPSAdminSite {
     # Disable LoopBack Check
     Disable-LoopbackCheck
     # Disable IE First Run
@@ -764,16 +767,16 @@ Url: $($spADMUrl)
 Exception: $($_.Exception.Message)
 "@
                 Write-Error -Message $catchMessage
-                Add-SPSWakeUpEvent -Message $catchMessage -Source 'Invoke-SPSAdminSites' -EntryType 'Error'
+                Add-SPSWakeUpEvent -Message $catchMessage -Source 'Invoke-SPSAdminSite' -EntryType 'Error'
             }
         }
     }
     else {
         Write-Warning -Message "No Central Admin Service Instance running on $env:COMPUTERNAME"
-        Add-SPSWakeUpEvent -Message "No Central Admin Service Instance running on $env:COMPUTERNAME" -Source 'Invoke-SPSAdminSites' -EntryType 'Warning'
+        Add-SPSWakeUpEvent -Message "No Central Admin Service Instance running on $env:COMPUTERNAME" -Source 'Invoke-SPSAdminSite' -EntryType 'Warning'
     }
 }
-function Invoke-SPSAllSites {
+function Invoke-SPSAllSite {
     # Initialize variables
     $DateStarted = Get-Date
     $hostEntries = New-Object -TypeName System.Collections.Generic.List[string]
@@ -861,7 +864,7 @@ function Invoke-SPSAllSites {
 
             $outputMessage = @"
 -------------------------------------
-| SPSWakeUp Script - Invoke-SPSAllSites
+| SPSWakeUp Script - Invoke-SPSAllSite
 | Started on : $DateStarted
 | Completed on : $DateEnded
 | SPSWakeUp waked up $totalUrls urls in $totalDuration seconds
@@ -880,13 +883,13 @@ function Invoke-SPSAllSites {
                 $outputMessage += ("`r`n" + "| $($w3wpProc.CreationDate) | $($w3wpMemoryUsage) MB | $($appPoolName)")
             }
             Write-Output $outputMessage
-            Add-SPSWakeUpEvent -Message $outputMessage -Source 'Invoke-SPSAllSites'-EntryType Information
+            Add-SPSWakeUpEvent -Message $outputMessage -Source 'Invoke-SPSAllSite'-EntryType Information
         }
         else {
             Write-Warning 'No site URLs found to process. $getSPSites is null or empty.'
             $warningMessage = "SPSWakeUp Script - No site URLs found to wake up. Please verify that Get-SPSSitesUrl returned valid URLs."
             Write-Output $warningMessage
-            Add-SPSWakeUpEvent -Message $warningMessage -Source 'Invoke-SPSAllSites' -EntryType Warning
+            Add-SPSWakeUpEvent -Message $warningMessage -Source 'Invoke-SPSAllSite' -EntryType Warning
         }
 
         # Clean the copy files of system HOSTS folder
@@ -901,7 +904,7 @@ function Invoke-SPSAllSites {
             Write-Warning 'No Site Collections found. Please verify that Get-SPSite returned valid URLs.'
         }
         $errorMessage = "SPSWakeUp Script - Cannot proceed: insufficient data (Web Applications count: $($getSPWebApps.Count), Site Collections count: $($getSPSites.Count))"
-        Add-SPSWakeUpEvent -Message $errorMessage -Source 'Invoke-SPSAllSites' -EntryType Warning
+        Add-SPSWakeUpEvent -Message $errorMessage -Source 'Invoke-SPSAllSite' -EntryType Warning
     }
 }
 function Disable-LoopbackCheck {
@@ -1013,7 +1016,8 @@ Exception: $($_.Exception.Message)
         }
     }
 }
-function Set-SPSProxySettings {
+function Set-SPSProxySetting {
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory = $true, Position = 0)]
         [ValidateSet('Backup', 'Disable', 'Restore', IgnoreCase = $true)]
@@ -1029,73 +1033,79 @@ function Set-SPSProxySettings {
 
     switch ($Action) {
         'Backup' {
-            try {
-                $proxySettings = Get-ItemProperty -Path $regPath |
-                Select-Object AutoConfigURL, ProxyEnable, ProxyServer, ProxyOverride
+            if ($PSCmdlet.ShouldProcess($BackupFile, 'Back up proxy settings')) {
+                try {
+                    $proxySettings = Get-ItemProperty -Path $regPath |
+                    Select-Object AutoConfigURL, ProxyEnable, ProxyServer, ProxyOverride
 
-                $proxySettings | ConvertTo-Json | Out-File -FilePath $BackupFile -Encoding UTF8
-                Write-Output "Proxy settings backed up to $BackupFile"
-            }
-            catch {
-                $catchMessage = @"
+                    $proxySettings | ConvertTo-Json | Out-File -FilePath $BackupFile -Encoding UTF8
+                    Write-Output "Proxy settings backed up to $BackupFile"
+                }
+                catch {
+                    $catchMessage = @"
 An error occurred while saving proxy settings
 File : $BackupFile
 Exception: $($_.Exception.Message)
 "@
-                Write-Error -Message $catchMessage
+                    Write-Error -Message $catchMessage
+                }
             }
         }
         'Disable' {
-            try {
-                $itemProperties = @('AutoConfigURL', 'ProxyServer', 'ProxyOverride')
-                Set-ItemProperty -Path $regPath -Name ProxyEnable -Value 0
-                foreach ($itemProperty in $itemProperties) {
-                    if (Get-ItemProperty -Path $regPath -Name $itemProperty -ErrorAction SilentlyContinue) {
-                        Remove-ItemProperty -Path $regPath -Name $itemProperty -ErrorAction SilentlyContinue
+            if ($PSCmdlet.ShouldProcess('Proxy settings', 'Disable')) {
+                try {
+                    $itemProperties = @('AutoConfigURL', 'ProxyServer', 'ProxyOverride')
+                    Set-ItemProperty -Path $regPath -Name ProxyEnable -Value 0
+                    foreach ($itemProperty in $itemProperties) {
+                        if (Get-ItemProperty -Path $regPath -Name $itemProperty -ErrorAction SilentlyContinue) {
+                            Remove-ItemProperty -Path $regPath -Name $itemProperty -ErrorAction SilentlyContinue
+                        }
                     }
+                    Write-Output 'All proxy settings disabled.'
                 }
-                Write-Output 'All proxy settings disabled.'
-            }
-            catch {
-                $catchMessage = @"
+                catch {
+                    $catchMessage = @"
 An error occurred while disabling proxy settings
 Exception: $($_.Exception.Message)
 "@
-                Write-Error -Message $catchMessage
+                    Write-Error -Message $catchMessage
+                }
             }
         }
         'Restore' {
             if (Test-Path $BackupFile) {
-                try {
-                    $proxySettings = Get-Content $BackupFile | ConvertFrom-Json
-                    Set-ItemProperty -Path $regPath -Name ProxyEnable -Value $proxySettings.ProxyEnable
-                    if ($proxySettings.ProxyServer) {
-                        Set-ItemProperty -Path $regPath -Name ProxyServer -Value $proxySettings.ProxyServer
+                if ($PSCmdlet.ShouldProcess($BackupFile, 'Restore proxy settings')) {
+                    try {
+                        $proxySettings = Get-Content $BackupFile | ConvertFrom-Json
+                        Set-ItemProperty -Path $regPath -Name ProxyEnable -Value $proxySettings.ProxyEnable
+                        if ($proxySettings.ProxyServer) {
+                            Set-ItemProperty -Path $regPath -Name ProxyServer -Value $proxySettings.ProxyServer
+                        }
+                        else {
+                            Remove-ItemProperty -Path $regPath -Name ProxyServer -ErrorAction SilentlyContinue
+                        }
+                        if ($proxySettings.AutoConfigURL) {
+                            Set-ItemProperty -Path $regPath -Name AutoConfigURL -Value $proxySettings.AutoConfigURL
+                        }
+                        else {
+                            Remove-ItemProperty -Path $regPath -Name AutoConfigURL -ErrorAction SilentlyContinue
+                        }
+                        if ($proxySettings.ProxyOverride) {
+                            Set-ItemProperty -Path $regPath -Name ProxyOverride -Value $proxySettings.ProxyOverride
+                        }
+                        else {
+                            Remove-ItemProperty -Path $regPath -Name ProxyOverride -ErrorAction SilentlyContinue
+                        }
+                        Write-Output "Proxy settings restored from $BackupFile"
                     }
-                    else {
-                        Remove-ItemProperty -Path $regPath -Name ProxyServer -ErrorAction SilentlyContinue
-                    }
-                    if ($proxySettings.AutoConfigURL) {
-                        Set-ItemProperty -Path $regPath -Name AutoConfigURL -Value $proxySettings.AutoConfigURL
-                    }
-                    else {
-                        Remove-ItemProperty -Path $regPath -Name AutoConfigURL -ErrorAction SilentlyContinue
-                    }
-                    if ($proxySettings.ProxyOverride) {
-                        Set-ItemProperty -Path $regPath -Name ProxyOverride -Value $proxySettings.ProxyOverride
-                    }
-                    else {
-                        Remove-ItemProperty -Path $regPath -Name ProxyOverride -ErrorAction SilentlyContinue
-                    }
-                    Write-Output "Proxy settings restored from $BackupFile"
-                }
-                catch {
-                    $catchMessage = @"
+                    catch {
+                        $catchMessage = @"
 An error occurred while restoring proxy settings
 File : $BackupFile
 Exception: $($_.Exception.Message)
 "@
-                    Write-Error -Message $catchMessage
+                        Write-Error -Message $catchMessage
+                    }
                 }
             }
             else {
@@ -1170,28 +1180,28 @@ switch ($Action) {
     }
     'AdminSitesOnly' {
         # Backup current Proxy Settings and Disable them
-        Set-SPSProxySettings -Action 'Backup' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
-        Set-SPSProxySettings -Action 'Disable'
+        Set-SPSProxySetting -Action 'Backup' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
+        Set-SPSProxySetting -Action 'Disable'
 
         # Invoke-WebRequest on Central Admin if Action parameter equal to AdminSitesOnly
-        Invoke-SPSAdminSites
+        Invoke-SPSAdminSite
 
         # Restore Proxy Settings
-        Set-SPSProxySettings -Action 'Restore' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
+        Set-SPSProxySetting -Action 'Restore' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
     }
     Default {
         # Backup current Proxy Settings and Disable them
-        Set-SPSProxySettings -Action 'Backup' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
-        Set-SPSProxySettings -Action 'Disable'
+        Set-SPSProxySetting -Action 'Backup' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
+        Set-SPSProxySetting -Action 'Disable'
 
         # Invoke-WebRequest on Central Admin if Action parameter equal to Default
-        Invoke-SPSAdminSites
+        Invoke-SPSAdminSite
 
         # Invoke-WebRequest on All Web Applications Urls, Host Named Site Collection and Site Collections
-        Invoke-SPSAllSites
+        Invoke-SPSAllSite
 
         # Restore Proxy Settings
-        Set-SPSProxySettings -Action 'Restore' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
+        Set-SPSProxySetting -Action 'Restore' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
     }
 }
 
