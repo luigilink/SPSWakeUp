@@ -33,6 +33,7 @@ body:
       label: Version
       description: What version of our software are you running?
       options:
+        - 4.2.x
         - 4.1.x
         - 4.0.x
         - 3.0.x

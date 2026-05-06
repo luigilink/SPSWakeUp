@@ -22,7 +22,37 @@ Required because this module now implements class-based resources.
 Class-based resources can only work on computers with Windows
 Management Framework 5.0 or above.
 The preferred version is PowerShell 5.1 or higher, which ships with Windows 10 or Windows Server 2016.
+
+### PowerShell 7.x (Optional)
+
+PowerShell 7.x is optional but recommended to run the PS7 warm-up worker script (`SPSWakeUp-pwsh.ps1`) for improved web request execution.
+
+Installation source (official Microsoft docs):
+
+- [Install PowerShell on Windows](https://learn.microsoft.com/en-us/powershell/scripting/install/install-powershell-on-windows)
+
 This is discussed further on the [SPSWakeUp Wiki Getting-Started](https://github.com/luigilink/SPSWakeUp/wiki/Getting-Started)
+
+## Script Architecture
+
+SPSWakeUp now uses a 2-script model:
+
+- `scripts/SPSWakeUP.ps1`: main entrypoint, orchestration, SharePoint URL collection, and PowerShell 5.1 compatibility path.
+- `scripts/SPSWakeUp-pwsh.ps1`: PowerShell 7.x worker used for `Invoke-WebRequest` warm-up operations.
+
+When `pwsh` (PowerShell 7.x) is available, `SPSWakeUP.ps1` delegates the warm-up phase to `SPSWakeUp-pwsh.ps1`.
+If PowerShell 7.x is not installed, `SPSWakeUP.ps1` automatically falls back to the PowerShell 5.1 warm-up flow.
+
+## PowerShell Gallery
+
+If you install scripts from PowerShell Gallery, install both scripts so PS7 mode is available:
+
+```powershell
+Install-Script -Name SPSWakeUP -Scope CurrentUser
+Install-Script -Name SPSWakeUp-pwsh -Scope CurrentUser
+```
+
+If only `SPSWakeUP` is installed, the script can still run using the PowerShell 5.1 fallback path.
 
 ## Documentation
 

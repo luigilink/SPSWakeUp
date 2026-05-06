@@ -6,21 +6,32 @@ This document provides instructions for installing and configuring the **SPSWake
 
 - SharePoint Server (2016 or later)
 - Administrator privileges on the server
-- PowerShell 5.1 or later
+- PowerShell 5.1 (required)
+- PowerShell 7.x (optional, recommended for faster web request warm-up)
 - Valid credentials for task scheduler setup
+
+PowerShell 7.x installation source (official Microsoft docs):
+
+- [Install PowerShell on Windows](https://learn.microsoft.com/en-us/powershell/scripting/install/install-powershell-on-windows)
 
 ## 📁 Files Required
 
 Ensure the following files are available locally:
 
-- `SPSWakeUP.ps1` (main script)
-- Any dependencies or modules used by the script (if applicable)
+- `SPSWakeUP.ps1` (main script/orchestrator)
+- `SPSWakeUp-pwsh.ps1` (PowerShell 7 worker for warm-up web requests)
+
+`SPSWakeUP.ps1` will use `SPSWakeUp-pwsh.ps1` when `pwsh` is available.
+If PowerShell 7.x is not installed, it automatically falls back to the PowerShell 5.1 warm-up flow.
 
 ## 🛠 Installation Steps
 
 ### 1. Copy Files to Server
 
-Place `SPSWakeUP.ps1` in a local folder on the SharePoint server, e.g., `E:\SCRIPT\`.
+Place both scripts in the same local folder on the SharePoint server, for example `E:\SCRIPT\`:
+
+- `SPSWakeUP.ps1`
+- `SPSWakeUp-pwsh.ps1`
 
 ### 2. Run Script with Install Action
 
@@ -35,6 +46,11 @@ This will:
 - Validate credentials
 - Add a scheduled task to run daily at 6:00 AM
 - Configure read access for the warm-up account
+
+At runtime:
+
+- If `pwsh` is installed, warm-up requests run via `SPSWakeUp-pwsh.ps1`.
+- If `pwsh` is not found, warm-up requests run directly in the PowerShell 5.1 fallback path.
 
 ### 3. Verify Scheduled Task
 
@@ -69,7 +85,8 @@ Log files will be saved in the script directory.
 ## 📚 Additional Notes
 
 - The script automatically disables proxy settings during execution and restores them afterward.
-- It supports multi-threaded web requests for efficient warm-up.
+- In PowerShell 7 mode, warm-up requests run through the dedicated worker script for better parallel request handling.
+- In PowerShell 5.1 mode, the script still runs using the built-in fallback warm-up flow.
 - HOSTS file entries are backed up and cleaned automatically.
 
 ## 📄 License

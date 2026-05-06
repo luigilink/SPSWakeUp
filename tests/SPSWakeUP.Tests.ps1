@@ -14,7 +14,6 @@
 BeforeAll {    # Validate Windows Server environment
     if ($PSVersionTable.Platform -eq 'Unix' -or -not [System.Environment]::OSVersion.Platform.ToString().Contains('Win')) {
         Write-Warning 'SPSWakeUP tests are designed for Windows Server with SharePoint. Skipping suite on non-Windows platforms.'
-        $skipAllTests = $true
     }
         # Import the script
     $scriptPath = Join-Path -Path $PSScriptRoot -ChildPath '..\scripts\SPSWakeUP.ps1'
@@ -50,6 +49,11 @@ Describe 'SPSWakeUP Script Structure' {
             $errors = $null
             [System.Management.Automation.PSParser]::Tokenize((Get-Content $scriptPath -Raw), [ref]$errors)
             $errors.Count | Should -Be 0
+        }
+
+        It 'Should include companion PS7 worker script' {
+            $pwshScriptPath = Join-Path -Path $PSScriptRoot -ChildPath '..\scripts\SPSWakeUp-pwsh.ps1'
+            $pwshScriptPath | Should -Exist
         }
     }
 

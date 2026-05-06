@@ -25,6 +25,7 @@ Invoke-Pester -Path .\tests\
 
 ```powershell
 Invoke-Pester -Path .\tests\SPSWakeUP.Tests.ps1
+Invoke-Pester -Path .\tests\SPSWakeUp-pwsh.Tests.ps1
 ```
 
 ### Run with Code Coverage
@@ -32,7 +33,7 @@ Invoke-Pester -Path .\tests\SPSWakeUP.Tests.ps1
 ```powershell
 $config = New-PesterConfiguration
 $config.CodeCoverage.Enabled = $true
-$config.CodeCoverage.Path = '.\scripts\SPSWakeUP.ps1'
+$config.CodeCoverage.Path = @('.\scripts\SPSWakeUP.ps1', '.\scripts\SPSWakeUp-pwsh.ps1')
 $config.Run.Path = '.\tests\'
 Invoke-Pester -Configuration $config
 ```
@@ -48,31 +49,43 @@ Invoke-Pester -Path .\tests\ -Output Detailed
 The test suite covers:
 
 ### 1. **Script Structure**
+
 - File existence and PowerShell syntax validation
 - Verification that all required functions are defined
 
+### 1.b **PowerShell 7 Worker Script**
+
+- `SPSWakeUp-pwsh.ps1` structure and syntax
+- `#Requires -Version 7.0` validation
+- Parallel warm-up (`ForEach-Object -Parallel`) and HTTP auth/certificate options
+
 ### 2. **Unit Tests**
+
 - `Get-SPSThrottleLimit`: CPU detection logic
 - `Clear-SPSLog`: Log file cleanup
 - `Add-SPSHostEntry`: URL parsing
 - `Get-SPSSitesUrl`: Site collection retrieval
-- `Set-SPSProxySettings`: Proxy configuration management
+- `Set-SPSProxySetting`: Proxy configuration management
 
 ### 3. **Resource Management**
+
 - COM object cleanup with ReleaseComObject
 - Password variable removal
 - Runspace pool and job cleanup
 
 ### 4. **Error Handling**
+
 - Try-Catch-Finally block verification
 - Event logging validation
 
 ### 5. **Security Best Practices**
+
 - Credential handling
 - Administrator privilege checks
 - Sensitive data cleanup
 
 ### 6. **Code Quality**
+
 - Function naming conventions
 - Output method consistency
 - Module import optimization

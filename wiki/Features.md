@@ -1,5 +1,11 @@
 # SPSWakeUp Features
 
+**Hybrid PowerShell Execution**:
+
+- `SPSWakeUP.ps1` orchestrates collection and execution.
+- `SPSWakeUp-pwsh.ps1` handles warm-up requests when PowerShell 7.x is available.
+- Automatic fallback to PowerShell 5.1 warm-up flow when PowerShell 7.x is not installed.
+
 **Logging**:
 
 - Log script results in log file,
@@ -52,6 +58,7 @@
 **Compatibility**:
 
 - Designed for all supported SharePoint versions (2016 to Subscription Edition).
+- Supports mixed execution models with PowerShell 5.1 and PowerShell 7.x.
 
 **Customizable Throttling**:
 
