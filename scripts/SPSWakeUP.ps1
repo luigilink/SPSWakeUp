@@ -1,5 +1,5 @@
 ﻿<#PSScriptInfo
-    .VERSION 4.1.2
+    .VERSION 4.1.3
 
     .GUID 1fc873b1-5854-46cb-8632-29cee879bb55
 
@@ -70,8 +70,8 @@
                 Nutsoft (Des Finkenzeller)
                 bed428 (Brian D.)
 
-    Date:		February 10, 2026
-    Version:	4.1.2
+    Date:		May 06, 2026
+    Version:	4.1.3
     Licence:	MIT License
 
     .LINK
@@ -96,14 +96,11 @@ param
 
 #region Initialization
 # Define variables
-$spsWakeupVersion = '4.1.2'
+$spsWakeupVersion = '4.1.3'
 $currentUser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
 
 # Clear the host console
 Clear-Host
-
-# Set the window title
-$Host.UI.RawUI.WindowTitle = "SPSWakeUP script running on $env:COMPUTERNAME"
 
 # Ensure the script is running with administrator privileges
 if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] 'Administrator')) {
@@ -184,7 +181,7 @@ Exception: $_
     }
 }
 function Get-SPSInstalledProductVersion {
-    [OutputType([System.Version])]
+    [OutputType([System.Diagnostics.FileVersionInfo])]
     param ()
 
     $pathToSearch = 'C:\Program Files\Common Files\microsoft shared\Web Server Extensions\*\ISAPI\Microsoft.SharePoint.dll'
@@ -193,7 +190,7 @@ function Get-SPSInstalledProductVersion {
         Write-Error -Message 'SharePoint path {C:\Program Files\Common Files\microsoft shared\Web Server Extensions} does not exist'
     }
     else {
-        return ([System.Diagnostics.FileVersionInfo]::GetVersionInfo($fullPath.FullName)).FileVersion
+        return [System.Diagnostics.FileVersionInfo]::GetVersionInfo($fullPath.FullName)
     }
 }
 function Add-SPSSheduledTask {
@@ -323,6 +320,7 @@ Exception: $($_.Exception.Message)
     }
 }
 function Remove-SPSSheduledTask {
+    [CmdletBinding(SupportsShouldProcess)]
     param (
         [Parameter(Mandatory = $true)]
         [System.String]
@@ -343,6 +341,7 @@ function Remove-SPSSheduledTask {
     }
     catch {
         Write-Output "Task folder '$TaskPath' does not exist."
+        return
     }
 
     # Retrieve the scheduled task
@@ -356,43 +355,24 @@ function Remove-SPSSheduledTask {
     else {
         Write-Output '--------------------------------------------------------------'
         Write-Output "Removing $($TaskName) script in Task Scheduler Service ..."
-        try {
-            $TaskFolder.DeleteTask($TaskName, $null) # Remove the task
-            Write-Output "Successfully removed $($TaskName) script from Task Scheduler Service"
-            Add-SPSWakeUpEvent -Message "Successfully removed '$TaskName' script from Task Scheduler Service" -Source 'Remove-SPSSheduledTask' -EntryType 'Information'
-        }
-        catch {
-            $catchMessage = @"
+        if ($PSCmdlet.ShouldProcess($TaskName, 'Remove scheduled task')) {
+            try {
+                $TaskFolder.DeleteTask($TaskName, $null) # Remove the task
+                Write-Output "Successfully removed $($TaskName) script from Task Scheduler Service"
+                Add-SPSWakeUpEvent -Message "Successfully removed '$TaskName' script from Task Scheduler Service" -Source 'Remove-SPSSheduledTask' -EntryType 'Information'
+            }
+            catch {
+                $catchMessage = @"
 An error occurred while removing the script in scheduled task: $($TaskName)
 Exception: $($_.Exception.Message)
 "@
-            Write-Error -Message $catchMessage # Handle any errors during task removal
-            Add-SPSWakeUpEvent -Message $catchMessage -Source 'Remove-SPSSheduledTask' -EntryType 'Error'
-        }
-        finally {
-            # Release COM objects
-            [System.Runtime.InteropServices.Marshal]::ReleaseComObject($TaskSvc) | Out-Null
-        }
-    }
-}
-function Get-SPSVersion {
-    process {
-        try {
-            # location in registry to get info about installed software
-            $regLoc = Get-ChildItem HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall
-            # Get SharePoint Products and language packs
-            $programs = $regLoc |  Where-Object -FilterScript {
-                $_.PsPath -like '*\Office*'
-            } | ForEach-Object -Process { Get-ItemProperty $_.PsPath }
-            # output the info about Products and Language Packs
-            $spsVersion = $programs | Where-Object -FilterScript {
-                $_.DisplayName -like '*SharePoint Server*'
+                Write-Error -Message $catchMessage # Handle any errors during task removal
+                Add-SPSWakeUpEvent -Message $catchMessage -Source 'Remove-SPSSheduledTask' -EntryType 'Error'
             }
-            # Return SharePoint version
-            $spsVersion.DisplayVersion
-        }
-        catch {
-            Write-Warning -Message $_
+            finally {
+                # Release COM objects
+                [System.Runtime.InteropServices.Marshal]::ReleaseComObject($TaskSvc) | Out-Null
+            }
         }
     }
 }
@@ -451,24 +431,18 @@ function Clear-SPSLog {
     )
 
     if (Test-Path $path) {
-        # Get the current date
-        $Now = Get-Date
-        # Definie the extension of log files
-        $Extension = '*.log'
         # Define LastWriteTime parameter based on $days
-        $LastWrite = $Now.AddDays(-$days)
+        $LastWrite = (Get-Date).AddDays(-$days)
         # Get files based on lastwrite filter and specified folder
-        $files = Get-Childitem -Path "$path\*.*" -Include $Extension | Where-Object -FilterScript {
+        $files = Get-ChildItem -Path $path -Filter '*.log' | Where-Object -FilterScript {
             $_.LastWriteTime -le "$LastWrite"
         }
 
         if ($files) {
             Write-Output "Cleaning log files in $path ..."
             foreach ($file in $files) {
-                if ($null -ne $file) {
-                    Write-Output "Deleting file $file ..."
-                    Remove-Item $file.FullName | Out-Null
-                }
+                Write-Output "Deleting file $file ..."
+                Remove-Item $file.FullName | Out-Null
             }
         }
     }
@@ -571,12 +545,10 @@ function Get-SPSWebAppUrl {
         $webApps = Get-SPWebApplication -ErrorAction SilentlyContinue
         if ($null -ne $webApps) {
             foreach ($webapp in $webApps) {
-                [void]$webAppURL.Add($webapp.GetResponseUri('Default').AbsoluteUri)
-                $spSrvIsInUri = Get-SPServer | Where-Object -FilterScript {
-                    $webapp.GetResponseUri('Default').AbsoluteUri -match $_.Name
-                }
-                if ($null -eq $spSrvIsInUri) {
-                    Add-SPSHostEntry -Url $webapp.GetResponseUri('Default').AbsoluteUri
+                $responseUri = $webapp.GetResponseUri('Default').AbsoluteUri
+                [void]$webAppURL.Add($responseUri)
+                if ($null -eq (Get-SPServer | Where-Object { $responseUri -match $_.Name })) {
+                    Add-SPSHostEntry -Url $responseUri
                 }
             }
             $sites = $webApps | ForEach-Object -Process {
@@ -670,7 +642,7 @@ function Invoke-SPSWebRequest {
     try {
         # Initialize variables and runpsace for Multi-Threading Request
         $psUserAgent = [Microsoft.PowerShell.Commands.PSUserAgent]::Chrome
-        $Jobs = @()
+        $Jobs = [System.Collections.Generic.List[object]]::new()
         $iss = [system.management.automation.runspaces.initialsessionstate]::CreateDefault()
         $Pool = [runspacefactory]::CreateRunspacePool(1, $throttleLimit, $iss, $Host)
         $Pool.Open()
@@ -686,7 +658,7 @@ Exception: $($_.Exception.Message)
     try {
         # Initialize WebSession from First SPWebApplication object
         $webApp = Get-SpWebApplication | Select-Object -first 1
-        $authentUrl = ("$($webapp.GetResponseUri('Default').AbsoluteUri)" + '_windows/default.aspx?ReturnUrl=/_layouts/15/Authenticate.aspx?Source=%2f')
+        $authentUrl = ("$($webApp.GetResponseUri('Default').AbsoluteUri)" + '_windows/default.aspx?ReturnUrl=/_layouts/15/Authenticate.aspx?Source=%2f')
         Write-Output "Getting webSession by opening $($authentUrl) with Invoke-WebRequest"
         Invoke-WebRequest -Uri $authentUrl `
             -SessionVariable webSession `
@@ -708,11 +680,11 @@ Exception: $($_.Exception.Message)
             if (-not([string]::IsNullOrEmpty($Url))) {
                 $Job = [powershell]::Create().AddScript($ScriptBlock).AddParameter('Uri', $Url).AddParameter('UserAgent', $psUserAgent).AddParameter('SessionWeb', $webSession)
                 $Job.RunspacePool = $Pool
-                $Jobs += New-Object PSObject -Property @{
+                $Jobs.Add([PSCustomObject]@{
                     Url    = $Url
                     Pipe   = $Job
                     Result = $Job.BeginInvoke()
-                }
+                })
             }
         }
         catch {
@@ -730,10 +702,10 @@ Exception: $($_.Exception.Message)
         Start-Sleep -S 1
     }
 
-    $Results = @()
+    $Results = [System.Collections.Generic.List[object]]::new()
     foreach ($Job in $Jobs) {
         try {
-            $Results += $Job.Pipe.EndInvoke($Job.Result)
+            $Results.Add($Job.Pipe.EndInvoke($Job.Result))
         }
         catch {
             $catchMessage = @"
@@ -750,7 +722,7 @@ Exception: $($_.Exception.Message)
     $Pool.Dispose()
     $Results
 }
-function Invoke-SPSAdminSites {
+function Invoke-SPSAdminSite {
     # Disable LoopBack Check
     Disable-LoopbackCheck
     # Disable IE First Run
@@ -795,16 +767,16 @@ Url: $($spADMUrl)
 Exception: $($_.Exception.Message)
 "@
                 Write-Error -Message $catchMessage
-                Add-SPSWakeUpEvent -Message $catchMessage -Source 'Invoke-SPSAdminSites' -EntryType 'Error'
+                Add-SPSWakeUpEvent -Message $catchMessage -Source 'Invoke-SPSAdminSite' -EntryType 'Error'
             }
         }
     }
     else {
         Write-Warning -Message "No Central Admin Service Instance running on $env:COMPUTERNAME"
-        Add-SPSWakeUpEvent -Message "No Central Admin Service Instance running on $env:COMPUTERNAME" -Source 'Invoke-SPSAdminSites' -EntryType 'Warning'
+        Add-SPSWakeUpEvent -Message "No Central Admin Service Instance running on $env:COMPUTERNAME" -Source 'Invoke-SPSAdminSite' -EntryType 'Warning'
     }
 }
-function Invoke-SPSAllSites {
+function Invoke-SPSAllSite {
     # Initialize variables
     $DateStarted = Get-Date
     $hostEntries = New-Object -TypeName System.Collections.Generic.List[string]
@@ -814,11 +786,30 @@ function Invoke-SPSAllSites {
     Write-Output '--------------------------------------------------------------'
     Write-Output 'Get URLs of All Web Applications ...'
     $getSPWebApps = Get-SPSWebAppUrl
+    # Filter out null or empty URLs (orphaned objects)
+    if ($null -ne $getSPWebApps) {
+        $originalWebAppCount = $getSPWebApps.Count
+        $getSPWebApps = $getSPWebApps | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        $filteredWebAppCount = $getSPWebApps.Count
+        if ($filteredWebAppCount -lt $originalWebAppCount) {
+            Write-Warning "Filtered out $($originalWebAppCount - $filteredWebAppCount) null or empty Web Application URL(s)"
+        }
+    }
 
     Write-Output '--------------------------------------------------------------'
     Write-Output 'Get URLs of All Site Collection ...'
     $getSPSites = Get-SPSSitesUrl
-    if ($null -ne $getSPWebApps -and $null -ne $getSPSites) {
+    # Filter out null or empty URLs (orphaned SPSite objects)
+    if ($null -ne $getSPSites) {
+        $originalSiteCount = $getSPSites.Count
+        $getSPSites = $getSPSites | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        $filteredSiteCount = $getSPSites.Count
+        if ($filteredSiteCount -lt $originalSiteCount) {
+            Write-Warning "Filtered out $($originalSiteCount - $filteredSiteCount) null or empty Site Collection URL(s) - possible orphaned SPSite objects"
+        }
+    }
+
+    if (($null -ne $getSPWebApps -and $getSPWebApps.Count -gt 0) -and ($null -ne $getSPSites -and $getSPSites.Count -gt 0)) {
         if ($hostEntries) {
             # Disable LoopBack Check
             Disable-LoopbackCheck
@@ -854,23 +845,26 @@ function Invoke-SPSAllSites {
         # Request Url with Invoke-WebRequest CmdLet for All Urls
         Write-Output '--------------------------------------------------------------'
         Write-Output 'Opening All sites Urls with Invoke-WebRequest, Please Wait...'
-        $InvokeResults = Invoke-SPSWebRequest -Urls $getSPSites -throttleLimit (Get-SPSThrottleLimit)
-        # Show the results
-        foreach ($InvokeResult in $InvokeResults) {
-            if ($null -ne $InvokeResult.Url) {
-                Write-Output '-----------------------------------'
-                Write-Output "| Url    : $($InvokeResult.Url)"
-                Write-Output "| Time   : $($InvokeResult.'Time(s)') seconds"
-                Write-Output "| Status : $($InvokeResult.Status)"
+        
+        # Additional validation before calling Invoke-SPSWebRequest
+        if ($null -ne $getSPSites -and $getSPSites.Count -gt 0) {
+            $InvokeResults = Invoke-SPSWebRequest -Urls $getSPSites -throttleLimit (Get-SPSThrottleLimit)
+            # Show the results
+            foreach ($InvokeResult in $InvokeResults) {
+                if ($null -ne $InvokeResult.Url) {
+                    Write-Output '-----------------------------------'
+                    Write-Output "| Url    : $($InvokeResult.Url)"
+                    Write-Output "| Time   : $($InvokeResult.'Time(s)') seconds"
+                    Write-Output "| Status : $($InvokeResult.Status)"
+                }
             }
-        }
-        $DateEnded = Get-Date
-        $totalUrls = $getSPSites.Count
-        $totalDuration = ($DateEnded - $DateStarted).TotalSeconds
+            $DateEnded = Get-Date
+            $totalUrls = $getSPSites.Count
+            $totalDuration = ($DateEnded - $DateStarted).TotalSeconds
 
-        $outputMessage = @"
+            $outputMessage = @"
 -------------------------------------
-| SPSWakeUp Script - Invoke-SPSAllSites
+| SPSWakeUp Script - Invoke-SPSAllSite
 | Started on : $DateStarted
 | Completed on : $DateEnded
 | SPSWakeUp waked up $totalUrls urls in $totalDuration seconds
@@ -880,19 +874,37 @@ function Invoke-SPSAllSites {
 --------------------------------------------------------------
 "@
 
-        $w3wpProcess = Get-CimInstance Win32_Process -Filter "name = 'w3wp.exe'" | Select-Object WorkingSetSize, CommandLine, CreationDate | Sort-Object CommandLine
-        foreach ($w3wpProc in $w3wpProcess) {
-            $w3wpProcCmdLine = $w3wpProc.CommandLine.Replace('c:\windows\system32\inetsrv\w3wp.exe -ap "', '')
-            $pos = $w3wpProcCmdLine.IndexOf('"')
-            $appPoolName = $w3wpProcCmdLine.Substring(0, $pos)
-            $w3wpMemoryUsage = [Math]::Round($w3wpProc.WorkingSetSize / 1MB)
-            $outputMessage += ("`r`n" + "| $($w3wpProc.CreationDate) | $($w3wpMemoryUsage) MB | $($appPoolName)")
+            $w3wpProcess = Get-CimInstance Win32_Process -Filter "name = 'w3wp.exe'" | Select-Object WorkingSetSize, CommandLine, CreationDate | Sort-Object CommandLine
+            foreach ($w3wpProc in $w3wpProcess) {
+                $w3wpProcCmdLine = $w3wpProc.CommandLine.Replace('c:\windows\system32\inetsrv\w3wp.exe -ap "', '')
+                $pos = $w3wpProcCmdLine.IndexOf('"')
+                $appPoolName = $w3wpProcCmdLine.Substring(0, $pos)
+                $w3wpMemoryUsage = [Math]::Round($w3wpProc.WorkingSetSize / 1MB)
+                $outputMessage += ("`r`n" + "| $($w3wpProc.CreationDate) | $($w3wpMemoryUsage) MB | $($appPoolName)")
+            }
+            Write-Output $outputMessage
+            Add-SPSWakeUpEvent -Message $outputMessage -Source 'Invoke-SPSAllSite'-EntryType Information
         }
-        Write-Output $outputMessage
-        Add-SPSWakeUpEvent -Message $outputMessage -Source 'Invoke-SPSAllSites'-EntryType Information
+        else {
+            Write-Warning 'No site URLs found to process. $getSPSites is null or empty.'
+            $warningMessage = "SPSWakeUp Script - No site URLs found to wake up. Please verify that Get-SPSSitesUrl returned valid URLs."
+            Write-Output $warningMessage
+            Add-SPSWakeUpEvent -Message $warningMessage -Source 'Invoke-SPSAllSite' -EntryType Warning
+        }
 
         # Clean the copy files of system HOSTS folder
         Clear-HostsFileCopy -hostsFilePath $hostsFile
+    }
+    else {
+        Write-Warning 'Cannot proceed: Web Applications or Site Collections not found or are empty.'
+        if ($null -eq $getSPWebApps -or $getSPWebApps.Count -eq 0) {
+            Write-Warning 'No Web Applications found. Please verify that Get-SPWebApplication returned valid URLs.'
+        }
+        if ($null -eq $getSPSites -or $getSPSites.Count -eq 0) {
+            Write-Warning 'No Site Collections found. Please verify that Get-SPSite returned valid URLs.'
+        }
+        $errorMessage = "SPSWakeUp Script - Cannot proceed: insufficient data (Web Applications count: $($getSPWebApps.Count), Site Collections count: $($getSPSites.Count))"
+        Add-SPSWakeUpEvent -Message $errorMessage -Source 'Invoke-SPSAllSite' -EntryType Warning
     }
 }
 function Disable-LoopbackCheck {
@@ -932,11 +944,8 @@ function Clear-HostsFileCopy {
 
     $hostsFolderPath = Split-Path $hostsFilePath
     if (Test-Path $hostsFolderPath) {
-        # Definie the extension of log files
-        $extension = '*.copy'
-
         # Get files with .copy extension, sort them by name, from most recent to oldest and skip the first numberFiles variable
-        $copyFiles = Get-ChildItem -Path "$hostsFolderPath\*.*" -Include $extension | Sort-Object -Descending -Property Name | Select-Object -Skip $numberFiles
+        $copyFiles = Get-ChildItem -Path $hostsFolderPath -Filter '*.copy' | Sort-Object -Descending -Property Name | Select-Object -Skip $numberFiles
         if ($copyFiles) {
             Write-Output '--------------------------------------------------------------'
             Write-Output "Cleaning backup HOSTS files in $hostsFolderPath ..."
@@ -1007,7 +1016,8 @@ Exception: $($_.Exception.Message)
         }
     }
 }
-function Set-SPSProxySettings {
+function Set-SPSProxySetting {
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory = $true, Position = 0)]
         [ValidateSet('Backup', 'Disable', 'Restore', IgnoreCase = $true)]
@@ -1023,73 +1033,79 @@ function Set-SPSProxySettings {
 
     switch ($Action) {
         'Backup' {
-            try {
-                $proxySettings = Get-ItemProperty -Path $regPath |
-                Select-Object AutoConfigURL, ProxyEnable, ProxyServer, ProxyOverride
+            if ($PSCmdlet.ShouldProcess($BackupFile, 'Back up proxy settings')) {
+                try {
+                    $proxySettings = Get-ItemProperty -Path $regPath |
+                    Select-Object AutoConfigURL, ProxyEnable, ProxyServer, ProxyOverride
 
-                $proxySettings | ConvertTo-Json | Out-File -FilePath $BackupFile -Encoding UTF8
-                Write-Output "Proxy settings backed up to $BackupFile"
-            }
-            catch {
-                $catchMessage = @"
+                    $proxySettings | ConvertTo-Json | Out-File -FilePath $BackupFile -Encoding UTF8
+                    Write-Output "Proxy settings backed up to $BackupFile"
+                }
+                catch {
+                    $catchMessage = @"
 An error occurred while saving proxy settings
 File : $BackupFile
 Exception: $($_.Exception.Message)
 "@
-                Write-Error -Message $catchMessage
+                    Write-Error -Message $catchMessage
+                }
             }
         }
         'Disable' {
-            try {
-                $itemProperties = @('AutoConfigURL', 'ProxyServer', 'ProxyOverride')
-                Set-ItemProperty -Path $regPath -Name ProxyEnable -Value 0
-                foreach ($itemProperty in $itemProperties) {
-                    if (Get-ItemProperty -Path $regPath -Name $itemProperty -ErrorAction SilentlyContinue) {
-                        Remove-ItemProperty -Path $regPath -Name $itemProperty -ErrorAction SilentlyContinue
+            if ($PSCmdlet.ShouldProcess('Proxy settings', 'Disable')) {
+                try {
+                    $itemProperties = @('AutoConfigURL', 'ProxyServer', 'ProxyOverride')
+                    Set-ItemProperty -Path $regPath -Name ProxyEnable -Value 0
+                    foreach ($itemProperty in $itemProperties) {
+                        if (Get-ItemProperty -Path $regPath -Name $itemProperty -ErrorAction SilentlyContinue) {
+                            Remove-ItemProperty -Path $regPath -Name $itemProperty -ErrorAction SilentlyContinue
+                        }
                     }
+                    Write-Output 'All proxy settings disabled.'
                 }
-                Write-Output 'All proxy settings disabled.'
-            }
-            catch {
-                $catchMessage = @"
+                catch {
+                    $catchMessage = @"
 An error occurred while disabling proxy settings
 Exception: $($_.Exception.Message)
 "@
-                Write-Error -Message $catchMessage
+                    Write-Error -Message $catchMessage
+                }
             }
         }
         'Restore' {
             if (Test-Path $BackupFile) {
-                try {
-                    $proxySettings = Get-Content $BackupFile | ConvertFrom-Json
-                    Set-ItemProperty -Path $regPath -Name ProxyEnable -Value $proxySettings.ProxyEnable
-                    if ($proxySettings.ProxyServer) {
-                        Set-ItemProperty -Path $regPath -Name ProxyServer -Value $proxySettings.ProxyServer
+                if ($PSCmdlet.ShouldProcess($BackupFile, 'Restore proxy settings')) {
+                    try {
+                        $proxySettings = Get-Content $BackupFile | ConvertFrom-Json
+                        Set-ItemProperty -Path $regPath -Name ProxyEnable -Value $proxySettings.ProxyEnable
+                        if ($proxySettings.ProxyServer) {
+                            Set-ItemProperty -Path $regPath -Name ProxyServer -Value $proxySettings.ProxyServer
+                        }
+                        else {
+                            Remove-ItemProperty -Path $regPath -Name ProxyServer -ErrorAction SilentlyContinue
+                        }
+                        if ($proxySettings.AutoConfigURL) {
+                            Set-ItemProperty -Path $regPath -Name AutoConfigURL -Value $proxySettings.AutoConfigURL
+                        }
+                        else {
+                            Remove-ItemProperty -Path $regPath -Name AutoConfigURL -ErrorAction SilentlyContinue
+                        }
+                        if ($proxySettings.ProxyOverride) {
+                            Set-ItemProperty -Path $regPath -Name ProxyOverride -Value $proxySettings.ProxyOverride
+                        }
+                        else {
+                            Remove-ItemProperty -Path $regPath -Name ProxyOverride -ErrorAction SilentlyContinue
+                        }
+                        Write-Output "Proxy settings restored from $BackupFile"
                     }
-                    else {
-                        Remove-ItemProperty -Path $regPath -Name ProxyServer -ErrorAction SilentlyContinue
-                    }
-                    if ($proxySettings.AutoConfigURL) {
-                        Set-ItemProperty -Path $regPath -Name AutoConfigURL -Value $proxySettings.AutoConfigURL
-                    }
-                    else {
-                        Remove-ItemProperty -Path $regPath -Name AutoConfigURL -ErrorAction SilentlyContinue
-                    }
-                    if ($proxySettings.ProxyOverride) {
-                        Set-ItemProperty -Path $regPath -Name ProxyOverride -Value $proxySettings.ProxyOverride
-                    }
-                    else {
-                        Remove-ItemProperty -Path $regPath -Name ProxyOverride -ErrorAction SilentlyContinue
-                    }
-                    Write-Output "Proxy settings restored from $BackupFile"
-                }
-                catch {
-                    $catchMessage = @"
+                    catch {
+                        $catchMessage = @"
 An error occurred while restoring proxy settings
 File : $BackupFile
 Exception: $($_.Exception.Message)
 "@
-                    Write-Error -Message $catchMessage
+                        Write-Error -Message $catchMessage
+                    }
                 }
             }
             else {
@@ -1164,28 +1180,28 @@ switch ($Action) {
     }
     'AdminSitesOnly' {
         # Backup current Proxy Settings and Disable them
-        Set-SPSProxySettings -Action 'Backup' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
-        Set-SPSProxySettings -Action 'Disable'
+        Set-SPSProxySetting -Action 'Backup' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
+        Set-SPSProxySetting -Action 'Disable'
 
         # Invoke-WebRequest on Central Admin if Action parameter equal to AdminSitesOnly
-        Invoke-SPSAdminSites
+        Invoke-SPSAdminSite
 
         # Restore Proxy Settings
-        Set-SPSProxySettings -Action 'Restore' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
+        Set-SPSProxySetting -Action 'Restore' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
     }
     Default {
         # Backup current Proxy Settings and Disable them
-        Set-SPSProxySettings -Action 'Backup' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
-        Set-SPSProxySettings -Action 'Disable'
+        Set-SPSProxySetting -Action 'Backup' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
+        Set-SPSProxySetting -Action 'Disable'
 
         # Invoke-WebRequest on Central Admin if Action parameter equal to Default
-        Invoke-SPSAdminSites
+        Invoke-SPSAdminSite
 
         # Invoke-WebRequest on All Web Applications Urls, Host Named Site Collection and Site Collections
-        Invoke-SPSAllSites
+        Invoke-SPSAllSite
 
         # Restore Proxy Settings
-        Set-SPSProxySettings -Action 'Restore' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
+        Set-SPSProxySetting -Action 'Restore' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
     }
 }
 
