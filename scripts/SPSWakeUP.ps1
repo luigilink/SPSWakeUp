@@ -544,7 +544,7 @@ function Get-SPSWebAppUrl {
         # hostEntries is provided by Invoke-SPSAllSite; initialize locally when
         # Get-SPSWebAppUrl is called from other flows (e.g. Install).
         if (-not (Get-Variable -Name hostEntries -Scope 1 -ErrorAction SilentlyContinue)) {
-            $hostEntries = New-Object -TypeName System.Collections.Generic.List[string]
+            Set-Variable -Name hostEntries -Scope Local -Value (New-Object -TypeName System.Collections.Generic.List[string])
         }
         # Get SPwebApplication Object
         $webApps = Get-SPWebApplication -ErrorAction SilentlyContinue

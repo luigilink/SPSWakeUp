@@ -22,6 +22,15 @@ Required because this module now implements class-based resources.
 Class-based resources can only work on computers with Windows
 Management Framework 5.0 or above.
 The preferred version is PowerShell 5.1 or higher, which ships with Windows 10 or Windows Server 2016.
+
+### PowerShell 7.x (Optional)
+
+PowerShell 7.x is optional but recommended to run the PS7 warm-up worker script (`SPSWakeUp-pwsh.ps1`) for improved web request execution.
+
+Installation source (official Microsoft docs):
+
+- [Install PowerShell on Windows](https://learn.microsoft.com/en-us/powershell/scripting/install/install-powershell-on-windows)
+
 This is discussed further on the [SPSWakeUp Wiki Getting-Started](https://github.com/luigilink/SPSWakeUp/wiki/Getting-Started)
 
 ## Script Architecture

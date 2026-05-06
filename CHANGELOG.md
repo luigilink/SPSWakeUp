@@ -31,6 +31,7 @@ SPSWakeUP.ps1:
 Documentation:
 
 - Update `README.md` with two-script architecture and PowerShell Gallery installation guidance for both scripts.
+- Add optional `PowerShell 7.x` prerequisite section in `README.md` with official Microsoft installation source URL.
 - Update wiki pages (`Home.md`, `Features.md`, `Getting-Started.md`, `Usage.md`) to reflect hybrid execution and fallback behavior.
 - Update `tests/README.md` with PS7 test execution examples and code coverage paths for both scripts.
 
@@ -50,7 +51,14 @@ SPSWakeUp-pwsh.ps1:
 
 - Add `-SkipCertificateCheck` for PowerShell 7 web requests in warm-up/authentication paths.
 - Add `-AllowUnencryptedAuthentication` where `UseDefaultCredentials` is used against HTTP endpoints to prevent PS7 authentication blocking.
+- Refactor `Invoke-WebRequest` calls to use splatting and add `Get-SPSAuthWebSession` helper for authentication session bootstrap.
+- Replace non-ASCII dashes in warning messages with ASCII characters to satisfy analyzer encoding checks.
 - Fix `PSScriptInfo` GUID format to a valid GUID value for script publishing compatibility.
+
+Code quality:
+
+- Resolve `PSUseDeclaredVarsMoreThanAssignments` warning in `SPSWakeUP.ps1` by switching local `hostEntries` initialization to `Set-Variable` in `Get-SPSWebAppUrl`.
+- Run `PSScriptAnalyzer` with no remaining Error/Warning findings on the `scripts` folder.
 
 ## [4.1.3] - 2026-05-06
 

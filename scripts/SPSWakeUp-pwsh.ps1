@@ -1,4 +1,4 @@
-#Requires -Version 7.0
+﻿#Requires -Version 7.0
 <#PSScriptInfo
     .VERSION 4.2.0
 
@@ -378,13 +378,16 @@ function Invoke-SPSAdminWarmUp {
     foreach ($spADMUrl in $AdminUrls) {
         try {
             $startInvoke = Get-Date
-            $webResponse = Invoke-WebRequest -Uri $spADMUrl `
-                -UseDefaultCredentials `
-                -AllowUnencryptedAuthentication `
-                -TimeoutSec 90 `
-                -UserAgent $psUserAgent `
-                -SkipCertificateCheck `
-                -UseBasicParsing
+            $argsInvokeWebReq = @{
+                Uri                            = $spADMUrl
+                UseDefaultCredentials          = $true
+                AllowUnencryptedAuthentication = $true
+                TimeoutSec                     = 90
+                UserAgent                      = $psUserAgent
+                SkipCertificateCheck           = $true
+                UseBasicParsing                = $true
+            }
+            $webResponse = Invoke-WebRequest @argsInvokeWebReq
             $TimeExec = '{0:N2}' -f (((Get-Date) - $startInvoke).TotalSeconds)
             Write-Output '-----------------------------------'
             Write-Output "| Url    : $spADMUrl"
@@ -401,6 +404,32 @@ Exception: $($_.Exception.Message)
             Add-SPSWakeUpEvent -Message $catchMessage -Source 'Invoke-SPSAdminWarmUp' -EntryType 'Error'
         }
     }
+}
+
+function Get-SPSAuthWebSession {
+    param
+    (
+        [Parameter(Mandatory = $true)]
+        [System.String]
+        $AuthUrl,
+
+        [Parameter(Mandatory = $true)]
+        $UserAgent
+    )
+
+    $argsInvokeWebReq = @{
+        Uri                            = $AuthUrl
+        SessionVariable                = 'webSession'
+        UseDefaultCredentials          = $true
+        AllowUnencryptedAuthentication = $true
+        TimeoutSec                     = 90
+        UserAgent                      = $UserAgent
+        SkipCertificateCheck           = $true
+        UseBasicParsing                = $true
+    }
+    Invoke-WebRequest @argsInvokeWebReq | Out-Null
+
+    return $webSession
 }
 #endregion
 
@@ -469,7 +498,7 @@ switch ($Action) {
                         $hostFileNeedsBackup = $false
                     }
                     if ($hostEntry.Contains(':')) {
-                        Write-Warning "$hostEntry cannot be added to HOSTS file — only standard port (80/443) web applications are supported."
+                        Write-Warning "$hostEntry cannot be added to HOSTS file - only standard port (80/443) web applications are supported."
                     }
                     else {
                         Write-Output "Adding $hostEntry to HOSTS file"
@@ -484,7 +513,7 @@ switch ($Action) {
             Invoke-SPSAdminWarmUp -AdminUrls $adminUrls
         }
         else {
-            Write-Warning 'No Admin URLs in JSON — skipping Central Admin warm-up.'
+            Write-Warning 'No Admin URLs in JSON - skipping Central Admin warm-up.'
         }
 
         # Warm up all site collections
@@ -499,14 +528,7 @@ switch ($Action) {
             if (-not [string]::IsNullOrWhiteSpace($authUrl)) {
                 try {
                     Write-Output "Getting web session from: $authUrl"
-                    Invoke-WebRequest -Uri $authUrl `
-                        -SessionVariable webSession `
-                        -UseDefaultCredentials `
-                        -AllowUnencryptedAuthentication `
-                        -TimeoutSec 90 `
-                        -UserAgent $psUserAgent `
-                        -SkipCertificateCheck `
-                        -UseBasicParsing | Out-Null
+                    $webSession = Get-SPSAuthWebSession -AuthUrl $authUrl -UserAgent $psUserAgent
                 }
                 catch {
                     Write-Warning "Could not establish web session from auth URL: $_"
@@ -558,7 +580,7 @@ switch ($Action) {
             Add-SPSWakeUpEvent -Message $outputMessage -Source 'Invoke-SPSAllSite' -EntryType 'Information'
         }
         else {
-            Write-Warning 'No site collection URLs found in JSON — skipping site warm-up.'
+            Write-Warning 'No site collection URLs found in JSON - skipping site warm-up.'
             Add-SPSWakeUpEvent -Message 'SPSWakeUp-WarmUp: No site URLs found in JSON file.' -Source 'Invoke-SPSAllSite' -EntryType 'Warning'
         }
 
