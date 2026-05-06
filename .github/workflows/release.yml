@@ -40,4 +40,5 @@ jobs:
         id: publish_psgallery
         run: |
           Publish-Script -Path "./scripts/SPSWakeUP.ps1" -NuGetApiKey ${{ secrets.PSGALLERYKEY }} -Repository PSGallery -Force -Verbose
+          Publish-Script -Path "./scripts/SPSWakeUp-pwsh.ps1" -NuGetApiKey ${{ secrets.PSGALLERYKEY }} -Repository PSGallery -Force -Verbose
         shell: pwsh

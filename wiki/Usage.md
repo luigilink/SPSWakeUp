@@ -4,11 +4,19 @@
 
 `SPSWakeUp.ps1` is a PowerShell script designed to wake up SharePoint sites by sending HTTP requests to their URLs. This ensures that the sites are preloaded into memory, reducing the initial load time for users.
 
+The script can use two execution paths:
+
+- PowerShell 7.x path via `SPSWakeUp-pwsh.ps1` (preferred when available).
+- PowerShell 5.1 fallback path when `pwsh` is not installed.
+
 ## Prerequisites
 
 - PowerShell 5.1 or later.
+- PowerShell 7.x (optional but recommended).
 - Necessary permissions to access the SharePoint sites.
-- Ensure the script is placed in a directory accessible by the user.
+- Ensure scripts are placed in the same directory and accessible by the user:
+  - `SPSWakeUP.ps1`
+  - `SPSWakeUp-pwsh.ps1`
 
 ## Parameters
 
@@ -64,6 +72,7 @@ The script logs the status of each request, including success or failure, and sa
 ## Notes
 
 - Use HTTPS URLs for secure communication.
+- If your environment only uses PowerShell 5.1, the script still works through fallback mode.
 - Test the script in a non-production environment before deploying it widely.
 
 ## Support

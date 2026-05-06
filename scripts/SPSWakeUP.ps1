@@ -1,5 +1,5 @@
 ﻿<#PSScriptInfo
-    .VERSION 4.1.3
+    .VERSION 4.2.0
 
     .GUID 1fc873b1-5854-46cb-8632-29cee879bb55
 
@@ -71,7 +71,7 @@
                 bed428 (Brian D.)
 
     Date:		May 06, 2026
-    Version:	4.1.3
+    Version:	4.2.0
     Licence:	MIT License
 
     .LINK
@@ -96,7 +96,7 @@ param
 
 #region Initialization
 # Define variables
-$spsWakeupVersion = '4.1.3'
+$spsWakeupVersion = '4.2.0'
 $currentUser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
 
 # Clear the host console
@@ -541,6 +541,11 @@ function Get-SPSWebAppUrl {
     try {
         # Initialize ArrayList Object
         $webAppURL = New-Object -TypeName System.Collections.ArrayList
+        # hostEntries is provided by Invoke-SPSAllSite; initialize locally when
+        # Get-SPSWebAppUrl is called from other flows (e.g. Install).
+        if (-not (Get-Variable -Name hostEntries -Scope 1 -ErrorAction SilentlyContinue)) {
+            $hostEntries = New-Object -TypeName System.Collections.Generic.List[string]
+        }
         # Get SPwebApplication Object
         $webApps = Get-SPWebApplication -ErrorAction SilentlyContinue
         if ($null -ne $webApps) {
@@ -865,6 +870,7 @@ function Invoke-SPSAllSite {
             $outputMessage = @"
 -------------------------------------
 | SPSWakeUp Script - Invoke-SPSAllSite
+| PowerShell Version : $($PSVersionTable.PSVersion)
 | Started on : $DateStarted
 | Completed on : $DateEnded
 | SPSWakeUp waked up $totalUrls urls in $totalDuration seconds
@@ -1117,45 +1123,45 @@ Exception: $($_.Exception.Message)
 #endregion
 
 #region initialize SharePoint Context
-# Load SharePoint Powershell Snapin or Import-Module
-try {
-    $installedVersion = Get-SPSInstalledProductVersion
-    if ($installedVersion.ProductMajorPart -eq 15 -or $installedVersion.ProductBuildPart -le 12999) {
-        if ($null -eq (Get-PSSnapin -Name Microsoft.SharePoint.PowerShell -ErrorAction SilentlyContinue)) {
-            Add-PSSnapin Microsoft.SharePoint.PowerShell
+# Load SharePoint snap-in/module for all actions that need SharePoint cmdlets.
+if ($Action -in @('Install', 'Uninstall', 'Default', 'AdminSitesOnly')) {
+    try {
+        $installedVersion = Get-SPSInstalledProductVersion
+        if ($installedVersion.ProductMajorPart -eq 15 -or $installedVersion.ProductBuildPart -le 12999) {
+            if ($null -eq (Get-PSSnapin -Name Microsoft.SharePoint.PowerShell -ErrorAction SilentlyContinue)) {
+                Add-PSSnapin Microsoft.SharePoint.PowerShell
+            }
+        }
+        else {
+            if (-not (Get-Module SharePointServer)) {
+                Import-Module SharePointServer -Verbose:$false -WarningAction SilentlyContinue -DisableNameChecking
+            }
         }
     }
-    else {
-        if (-not (Get-Module SharePointServer)) {
-            Import-Module SharePointServer -Verbose:$false -WarningAction SilentlyContinue -DisableNameChecking
-        }
-    }
-}
-catch {
-    # Handle errors during retrieval of Installed Product Version
-    $catchMessage = @"
-Failed to get installed Product Version for $($env:COMPUTERNAME)
+    catch {
+        $catchMessage = @"
+Failed to load SharePoint module on $($env:COMPUTERNAME)
 Exception: $($_.Exception.Message)
 "@
-    Write-Error -Message $catchMessage
-    Add-SPSWakeUpEvent -Message $catchMessage -Source 'Initialize Module' -EntryType 'Error'
-}
-# From SharePoint 2016, check if MinRole equal to Search
-try {
-    $currentSPServer = Get-SPServer | Where-Object -FilterScript { $_.Address -eq $env:COMPUTERNAME }
-    if ($null -ne $currentSPServer -and (Get-SPFarm).buildversion.major -ge 16) {
-        if ($currentSPServer.Role -eq 'Search') {
-            Write-Warning -Message 'You run this script on server with Search MinRole'
-            Add-SPSWakeUpEvent -Message 'Search MinRole is not supported in SPSWakeUp' -Source 'Server MinRole' -EntryType 'Warning'
-            Exit
+        Write-Error -Message $catchMessage
+        Add-SPSWakeUpEvent -Message $catchMessage -Source 'Initialize Module' -EntryType 'Error'
+    }
+    try {
+        $currentSPServer = Get-SPServer | Where-Object -FilterScript { $_.Address -eq $env:COMPUTERNAME }
+        if ($null -ne $currentSPServer -and (Get-SPFarm).buildversion.major -ge 16) {
+            if ($currentSPServer.Role -eq 'Search') {
+                Write-Warning -Message 'You run this script on server with Search MinRole'
+                Add-SPSWakeUpEvent -Message 'Search MinRole is not supported in SPSWakeUp' -Source 'Server MinRole' -EntryType 'Warning'
+                Exit
+            }
         }
     }
-}
-catch {
-    Write-Error -Message @"
+    catch {
+        Write-Error -Message @"
 An error occurred while checking the SharePoint Server Role
 Exception: $($_.Exception.Message)
 "@
+    }
 }
 #endregion
 
@@ -1179,29 +1185,112 @@ switch ($Action) {
         }
     }
     'AdminSitesOnly' {
-        # Backup current Proxy Settings and Disable them
-        Set-SPSProxySetting -Action 'Backup' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
-        Set-SPSProxySetting -Action 'Disable'
+        # Phase 1: collect SharePoint URLs in current process (PS 5.1 compatible)
+        $jsonPath      = Join-Path -Path $PSScriptRoot -ChildPath 'SPSWakeUp_urls.json'
+        $warmupScript  = Join-Path -Path $PSScriptRoot -ChildPath 'SPSWakeUp-pwsh.ps1'
 
-        # Invoke-WebRequest on Central Admin if Action parameter equal to AdminSitesOnly
-        Invoke-SPSAdminSite
+        Write-Output '--------------------------------------------------------------'
+        Write-Output 'Phase 1: Collecting URLs in current PowerShell process ...'
 
-        # Restore Proxy Settings
-        Set-SPSProxySetting -Action 'Restore' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
+        $adminUrls = Get-SPSAdminUrl
+        $payload = [ordered]@{
+            Action        = 'AdminSitesOnly'
+            GeneratedAt   = (Get-Date -Format 'o')
+            ThrottleLimit = (Get-SPSThrottleLimit)
+            AdminUrls     = @($adminUrls | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+            SiteUrls      = @()
+            WebAppUrls    = @()
+            HostEntries   = @()
+            AuthUrl       = ''
+        }
+
+        $payload | ConvertTo-Json -Depth 5 | Out-File -FilePath $jsonPath -Encoding UTF8 -Force
+
+        # Phase 2: warm up via PS 7.x if available, otherwise fallback to PS 5.1.
+        if (Test-Path -Path $jsonPath) {
+            $pwshCmd = Get-Command pwsh -ErrorAction SilentlyContinue
+            $pwshPath = if ($null -ne $pwshCmd) { $pwshCmd.Source } else { $null }
+            if ([string]::IsNullOrEmpty($pwshPath)) { $pwshPath = 'C:\Program Files\PowerShell\7\pwsh.exe' }
+
+            if ((Test-Path -Path $pwshPath) -and (Test-Path -Path $warmupScript)) {
+                Write-Output '--------------------------------------------------------------'
+                Write-Output 'Phase 2: Warming up with PowerShell 7.x ...'
+                $warmupArgs = "-ExecutionPolicy Bypass -File `"$warmupScript`" -Action AdminSitesOnly -InputJsonPath `"$jsonPath`""
+                Start-Process -FilePath $pwshPath -ArgumentList $warmupArgs -Wait -NoNewWindow
+            }
+            else {
+                Write-Warning 'PowerShell 7.x not found. Falling back to Windows PowerShell 5.1 warm-up flow.'
+                Set-SPSProxySetting -Action 'Backup' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
+                Set-SPSProxySetting -Action 'Disable'
+                Invoke-SPSAdminSite
+                Set-SPSProxySetting -Action 'Restore' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
+            }
+        }
+        else {
+            Write-Warning "JSON file not found after collect phase: $jsonPath"
+        }
     }
     Default {
-        # Backup current Proxy Settings and Disable them
-        Set-SPSProxySetting -Action 'Backup' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
-        Set-SPSProxySetting -Action 'Disable'
+        # Phase 1: collect SharePoint URLs in current process (PS 5.1 compatible)
+        $jsonPath      = Join-Path -Path $PSScriptRoot -ChildPath 'SPSWakeUp_urls.json'
+        $warmupScript  = Join-Path -Path $PSScriptRoot -ChildPath 'SPSWakeUp-pwsh.ps1'
 
-        # Invoke-WebRequest on Central Admin if Action parameter equal to Default
-        Invoke-SPSAdminSite
+        Write-Output '--------------------------------------------------------------'
+        Write-Output 'Phase 1: Collecting URLs in current PowerShell process ...'
 
-        # Invoke-WebRequest on All Web Applications Urls, Host Named Site Collection and Site Collections
-        Invoke-SPSAllSite
+        $hostEntries = New-Object -TypeName System.Collections.Generic.List[string]
+        $adminUrls = Get-SPSAdminUrl
+        $webAppUrls = Get-SPSWebAppUrl
+        $siteUrls = Get-SPSSitesUrl
 
-        # Restore Proxy Settings
-        Set-SPSProxySetting -Action 'Restore' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
+        $authUrl = ''
+        try {
+            $firstWebApp = Get-SPWebApplication | Select-Object -First 1
+            if ($null -ne $firstWebApp) {
+                $authUrl = "$($firstWebApp.GetResponseUri('Default').AbsoluteUri)_windows/default.aspx?ReturnUrl=/_layouts/15/Authenticate.aspx?Source=%2f"
+            }
+        }
+        catch {
+            Write-Warning "Could not determine authentication URL: $($_.Exception.Message)"
+        }
+
+        $payload = [ordered]@{
+            Action        = 'Default'
+            GeneratedAt   = (Get-Date -Format 'o')
+            ThrottleLimit = (Get-SPSThrottleLimit)
+            AdminUrls     = @($adminUrls | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+            SiteUrls      = @($siteUrls | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+            WebAppUrls    = @($webAppUrls | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+            HostEntries   = @($hostEntries | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+            AuthUrl       = $authUrl
+        }
+
+        $payload | ConvertTo-Json -Depth 5 | Out-File -FilePath $jsonPath -Encoding UTF8 -Force
+
+        # Phase 2: warm up via PS 7.x if available, otherwise fallback to PS 5.1.
+        if (Test-Path -Path $jsonPath) {
+            $pwshCmd = Get-Command pwsh -ErrorAction SilentlyContinue
+            $pwshPath = if ($null -ne $pwshCmd) { $pwshCmd.Source } else { $null }
+            if ([string]::IsNullOrEmpty($pwshPath)) { $pwshPath = 'C:\Program Files\PowerShell\7\pwsh.exe' }
+
+            if ((Test-Path -Path $pwshPath) -and (Test-Path -Path $warmupScript)) {
+                Write-Output '--------------------------------------------------------------'
+                Write-Output 'Phase 2: Warming up with PowerShell 7.x ...'
+                $warmupArgs = "-ExecutionPolicy Bypass -File `"$warmupScript`" -Action Default -InputJsonPath `"$jsonPath`""
+                Start-Process -FilePath $pwshPath -ArgumentList $warmupArgs -Wait -NoNewWindow
+            }
+            else {
+                Write-Warning 'PowerShell 7.x not found. Falling back to Windows PowerShell 5.1 warm-up flow.'
+                Set-SPSProxySetting -Action 'Backup' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
+                Set-SPSProxySetting -Action 'Disable'
+                Invoke-SPSAdminSite
+                Invoke-SPSAllSite
+                Set-SPSProxySetting -Action 'Restore' -BackupFile "$PSScriptRoot\SPSWakeUP_proxy_backup.json"
+            }
+        }
+        else {
+            Write-Warning "JSON file not found after collect phase: $jsonPath"
+        }
     }
 }
 

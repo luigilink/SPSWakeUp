@@ -68,7 +68,7 @@ jobs:
       - name: Run PSScriptAnalyzer
         shell: pwsh
         run: |
-          $results = Invoke-ScriptAnalyzer -Path ./scripts/SPSWakeUP.ps1 -Severity Error,Warning
+          $results = Invoke-ScriptAnalyzer -Path ./scripts -Severity Error,Warning
           if ($results) {
             $results | Format-Table -AutoSize
             Write-Error "PSScriptAnalyzer found issues"

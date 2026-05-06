@@ -24,6 +24,27 @@ Management Framework 5.0 or above.
 The preferred version is PowerShell 5.1 or higher, which ships with Windows 10 or Windows Server 2016.
 This is discussed further on the [SPSWakeUp Wiki Getting-Started](https://github.com/luigilink/SPSWakeUp/wiki/Getting-Started)
 
+## Script Architecture
+
+SPSWakeUp now uses a 2-script model:
+
+- `scripts/SPSWakeUP.ps1`: main entrypoint, orchestration, SharePoint URL collection, and PowerShell 5.1 compatibility path.
+- `scripts/SPSWakeUp-pwsh.ps1`: PowerShell 7.x worker used for `Invoke-WebRequest` warm-up operations.
+
+When `pwsh` (PowerShell 7.x) is available, `SPSWakeUP.ps1` delegates the warm-up phase to `SPSWakeUp-pwsh.ps1`.
+If PowerShell 7.x is not installed, `SPSWakeUP.ps1` automatically falls back to the PowerShell 5.1 warm-up flow.
+
+## PowerShell Gallery
+
+If you install scripts from PowerShell Gallery, install both scripts so PS7 mode is available:
+
+```powershell
+Install-Script -Name SPSWakeUP -Scope CurrentUser
+Install-Script -Name SPSWakeUp-pwsh -Scope CurrentUser
+```
+
+If only `SPSWakeUP` is installed, the script can still run using the PowerShell 5.1 fallback path.
+
 ## Documentation
 
 For detailed usage, configuration, and getting started information, visit the [SPSWakeUp Wiki](https://github.com/luigilink/SPSWakeUp/wiki)
