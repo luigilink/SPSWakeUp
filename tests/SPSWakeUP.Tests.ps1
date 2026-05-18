@@ -469,3 +469,16 @@ Describe 'Code Quality' {
         }
     }
 }
+
+Describe 'Scheduled Task Argument Quoting' {
+
+    Context 'Install-SPSWakeUP ActionArguments' {
+        It 'Should quote script path when building scheduled task arguments' {
+            $scriptPath = Join-Path -Path $PSScriptRoot -ChildPath '..\scripts\SPSWakeUP.ps1'
+            $content = Get-Content $scriptPath -Raw
+
+            # Ensure the scheduled task command wraps -File path in escaped quotes.
+            $content | Should -Match '\$ActionArguments\s*=\s*"-ExecutionPolicy Bypass -File `"\$escapedScriptPath`\""'
+        }
+    }
+}

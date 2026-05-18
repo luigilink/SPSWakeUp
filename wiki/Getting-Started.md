@@ -5,6 +5,8 @@
 - PowerShell 5.0 or later
 - PowerShell 7.x (optional, recommended for warm-up worker script)
 - Administrative privileges on the SharePoint Server
+- Install and run the script on SharePoint Web Front End (WFE) servers
+- Do not install or run the script on servers with the Search MinRole
 
 ## Installation
 
@@ -27,6 +29,8 @@ Install-Script -Name SPSWakeUp-pwsh -Verbose
 `SPSWakeUP.ps1` remains the main entrypoint. If `pwsh` is available, it delegates warm-up requests to `SPSWakeUp-pwsh.ps1`; otherwise it uses a PowerShell 5.1 fallback flow.
 
 ### Install the script in TaskScheduler
+
+Run this install action from a WFE server only (not from a Search MinRole server).
 
 Run the script with the following command:
 
