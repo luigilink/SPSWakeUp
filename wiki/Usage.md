@@ -13,6 +13,8 @@ The script can use two execution paths:
 
 - PowerShell 5.1 or later.
 - PowerShell 7.x (optional but recommended).
+- Run from a SharePoint Web Front End (WFE) server.
+- Do not run from a server with the Search MinRole.
 - Necessary permissions to access the SharePoint sites.
 - Ensure scripts are placed in the same directory and accessible by the user:
   - `SPSWakeUP.ps1`

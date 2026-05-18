@@ -25,6 +25,10 @@ This current version supports FBA and Windows Authentication (Claims, NTLM and K
 
 For details on installation, features, and parameters, explore the links below:
 
+> [!IMPORTANT]
+> Install and run SPSWakeUp on SharePoint Web Front End (WFE) servers only.
+> Do not install or run SPSWakeUp on servers with the Search MinRole.
+
 - [Getting Started](./Getting-Started)
 - [Features](./Features)
 - [Usage](./Usage)

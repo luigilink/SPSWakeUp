@@ -3,6 +3,28 @@
 The format is based on and uses the types of changes according to [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.2.2] - 2026-05-18
+
+### Changed
+
+SPSWakeUP.ps1 / SPSWakeUp-pwsh.ps1:
+
+- Bump script version metadata and in-script version variables to `4.2.2`.
+
+### Fixed
+
+SPSWakeUP.ps1:
+
+- Fix scheduled task action argument construction in `Install-SPSWakeUP` by quoting the `-File` script path, so installations work when the script path contains spaces.
+
+### Tests
+
+- Add regression test in `tests/SPSWakeUP.Tests.ps1` to assert scheduled task `ActionArguments` uses a quoted script path for `-File`.
+
+### Documentation
+
+- Update `README.md` and wiki pages (`Home.md`, `Features.md`, `Getting-Started.md`, `Usage.md`) to specify deployment guidance: run/install on Web Front End (WFE) servers and do not run/install on Search MinRole servers.
+
 ## [4.2.1] - 2026-05-06
 
 ### Added

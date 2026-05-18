@@ -1,5 +1,5 @@
 ﻿<#PSScriptInfo
-    .VERSION 4.2.1
+    .VERSION 4.2.2
 
     .GUID 1fc873b1-5854-46cb-8632-29cee879bb55
 
@@ -71,7 +71,7 @@
                 bed428 (Brian D.)
 
     Date:		May 06, 2026
-    Version:	4.2.1
+    Version:	4.2.2
     Licence:	MIT License
 
     .LINK
@@ -96,7 +96,7 @@ param
 
 #region Initialization
 # Define variables
-$spsWakeupVersion = '4.2.1'
+$spsWakeupVersion = '4.2.2'
 $currentUser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
 
 # Clear the host console
@@ -390,7 +390,9 @@ function Install-SPSWakeUP {
     )
 
     # Initialize variables
-    $ActionArguments = "-ExecutionPolicy Bypass -File $Path"
+    # Quote script path to support scheduled task execution when path contains spaces.
+    $escapedScriptPath = $Path.Replace('"', '""')
+    $ActionArguments = "-ExecutionPolicy Bypass -File `"$escapedScriptPath`""
     $UserName = $InstallAccount.UserName
     $Password = $InstallAccount.GetNetworkCredential().Password
     $currentDomain = 'LDAP://' + ([ADSI]'').distinguishedName
@@ -415,7 +417,7 @@ function Install-SPSWakeUP {
         }
     }
     # Remove variables
-    Remove-Variable ActionArguments, UserName, Password, currentDomain, dom
+    Remove-Variable ActionArguments, escapedScriptPath, UserName, Password, currentDomain, dom
 }
 function Clear-SPSLog {
     param

@@ -6,6 +6,11 @@
 - `SPSWakeUp-pwsh.ps1` handles warm-up requests when PowerShell 7.x is available.
 - Automatic fallback to PowerShell 5.1 warm-up flow when PowerShell 7.x is not installed.
 
+**Recommended Server Role**:
+
+- Install and run SPSWakeUp on SharePoint Web Front End (WFE) servers.
+- Do not install or run SPSWakeUp on servers using the Search MinRole.
+
 **Logging**:
 
 - Log script results in log file,
