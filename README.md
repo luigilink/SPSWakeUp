@@ -16,7 +16,7 @@ It's compatible with all supported versions for SharePoint OnPremises (2016 to S
 
 ## Requirements
 
-## Deployment Guidance (Server Role)
+### Deployment Guidance (Server Role)
 
 - Install and run SPSWakeUp on SharePoint Web Front End (WFE) servers.
 - Do not install or run SPSWakeUp on servers using the Search MinRole.
