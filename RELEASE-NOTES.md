@@ -1,26 +1,16 @@
 # SPSWakeUp - Release Notes
 
-## [4.2.2] - 2026-05-18
+## [4.2.3] - 2026-07-07
 
 ### Changed
 
+- Bump `actions/checkout` to `v7` across all workflows (`release.yml`, `pester.yml`, `wiki.yml`), replacing the previous `v4`/`v3` pins that relied on the deprecated Node.js runtime ([#42](https://github.com/luigilink/SPSWakeUp/issues/42)).
+- Bump `actions/upload-artifact` to `v7` and `softprops/action-gh-release` to `v3` in the CI workflows ([#42](https://github.com/luigilink/SPSWakeUp/issues/42)).
+- `release.yml`: build the release ZIP from the **contents** of `scripts/` instead of the folder itself, so `SPSWakeUP.ps1`, `SPSWakeUp-pwsh.ps1` and `SPSWakeUP_README.md` are extracted at the archive root ([#42](https://github.com/luigilink/SPSWakeUp/issues/42)).
+
 SPSWakeUP.ps1 / SPSWakeUp-pwsh.ps1:
 
-- Bump script version metadata and in-script version variables to `4.2.2`.
-
-### Fixed
-
-SPSWakeUP.ps1:
-
-- Fix scheduled task action argument construction in `Install-SPSWakeUP` by quoting the `-File` script path, so installations work when the script path contains spaces.
-
-### Tests
-
-- Add regression test in `tests/SPSWakeUP.Tests.ps1` to assert scheduled task `ActionArguments` uses a quoted script path for `-File`.
-
-### Documentation
-
-- Update `README.md` and wiki pages (`Home.md`, `Features.md`, `Getting-Started.md`, `Usage.md`) to specify deployment guidance: run/install on Web Front End (WFE) servers and do not run/install on Search MinRole servers.
+- Bump script version metadata and in-script version variables to `4.2.3`.
 
 ## Changelog
 

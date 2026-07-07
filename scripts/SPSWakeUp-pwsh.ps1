@@ -1,6 +1,6 @@
 ﻿#Requires -Version 7.0
 <#PSScriptInfo
-    .VERSION 4.2.2
+    .VERSION 4.2.3
 
     .GUID 3cd095b3-7b4e-5a2f-ad8e-4f6a2b9c1d5e
 
@@ -60,8 +60,8 @@
     FileName:   SPSWakeUp-pwsh.ps1
     Authors:    luigilink (Jean-Cyril DROUHIN)
 
-    Date:       May 06, 2026
-    Version:    4.2.2
+    Date:       July 07, 2026
+    Version:    4.2.3
     Licence:    MIT License
 
     .LINK
@@ -85,7 +85,7 @@ param
 )
 
 #region Initialization
-$spsWakeupVersion = '4.2.2'
+$spsWakeupVersion = '4.2.3'
 $currentUser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
 
 Clear-Host

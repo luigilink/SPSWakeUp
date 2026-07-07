@@ -15,17 +15,17 @@ jobs:
       # Checkout code
       - name: Checkout code
         id: checkout_code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       # Create a ZIP file with project name and tag version
       - name: Create ZIP file of scripts
         run: |
           zip_name="SPSWakeUp-${{ github.ref_name }}.zip"
-          zip -r $zip_name scripts/
+          ( cd scripts && zip -r "../$zip_name" . )
         shell: bash
       # Create Release with tag version
       - name: Create GitHub Release
         id: create_release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
