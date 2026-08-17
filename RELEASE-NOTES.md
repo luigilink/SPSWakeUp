@@ -1,16 +1,19 @@
 # SPSWakeUp - Release Notes
 
-## [4.2.3] - 2026-07-07
+## [4.2.4] - 2026-08-17
+
+### Fixed
+
+- Fix warm-up failing in **SSL offloading** architectures where the Web Front End listens in HTTP only (no 443 binding) while the Default zone public URL is HTTPS. SPSWakeUp now selects the local warm-up scheme from the zone's real IIS bindings (`ServerBindings` / `SecureBindings`) instead of the offloaded public URL ([#46](https://github.com/luigilink/SPSWakeUp/issues/46)).
+
+### Added
+
+- Add `Get-SPSPreferredUrl` helper that chooses the warm-up protocol/host from the zone IIS bindings: HTTP when an HTTP ServerBinding exists (covers SSL offloading), HTTPS otherwise. Backward compatible for farms with a real 443 binding.
 
 ### Changed
 
-- Bump `actions/checkout` to `v7` across all workflows (`release.yml`, `pester.yml`, `wiki.yml`), replacing the previous `v4`/`v3` pins that relied on the deprecated Node.js runtime ([#42](https://github.com/luigilink/SPSWakeUp/issues/42)).
-- Bump `actions/upload-artifact` to `v7` and `softprops/action-gh-release` to `v3` in the CI workflows ([#42](https://github.com/luigilink/SPSWakeUp/issues/42)).
-- `release.yml`: build the release ZIP from the **contents** of `scripts/` instead of the folder itself, so `SPSWakeUP.ps1`, `SPSWakeUp-pwsh.ps1` and `SPSWakeUP_README.md` are extracted at the archive root ([#42](https://github.com/luigilink/SPSWakeUp/issues/42)).
-
-SPSWakeUP.ps1 / SPSWakeUp-pwsh.ps1:
-
-- Bump script version metadata and in-script version variables to `4.2.3`.
+- Refactor `Get-SPSWebAppUrl` and `Get-SPSSitesUrl` (and the Default-zone authentication URL) to build warm-up URLs through `Get-SPSPreferredUrl`.
+- Bump script version metadata and in-script version variables to `4.2.4`.
 
 ## Changelog
 
