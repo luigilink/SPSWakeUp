@@ -3,6 +3,34 @@
 The format is based on and uses the types of changes according to [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.2.4] - 2026-08-17
+
+### Fixed
+
+SPSWakeUP.ps1:
+
+- Fix warm-up failing in **SSL offloading** architectures where the Web Front End listens in HTTP only (no 443 binding) while the Default zone public URL is HTTPS. SPSWakeUp now selects the local warm-up scheme from the zone's real IIS bindings (`ServerBindings` / `SecureBindings`) instead of the offloaded public URL ([#46](https://github.com/luigilink/SPSWakeUp/issues/46)).
+
+### Added
+
+SPSWakeUP.ps1:
+
+- Add `Get-SPSPreferredUrl` helper that, for a given web application and zone, chooses the protocol (and host header/path) from the IIS `ServerBindings`/`SecureBindings`: HTTP when an HTTP ServerBinding exists (covers SSL offloading), HTTPS otherwise. Falls back to the original URL when bindings cannot be read, preserving previous behaviour for farms without offloading.
+
+### Changed
+
+SPSWakeUP.ps1:
+
+- Refactor `Get-SPSWebAppUrl` and `Get-SPSSitesUrl` (and the Default-zone authentication URL construction, including the PowerShell 7 handoff) to build warm-up URLs through `Get-SPSPreferredUrl`.
+
+SPSWakeUP.ps1 / SPSWakeUp-pwsh.ps1:
+
+- Bump script version metadata and in-script version variables to `4.2.4`.
+
+### Tests
+
+- Add Pester tests for `Get-SPSPreferredUrl` covering SSL offloading (HTTP ServerBinding only), full HTTPS (SecureBindings only), pure HTTP, path preservation, and the no-bindings fallback.
+
 ## [4.2.3] - 2026-07-07
 
 ### Changed

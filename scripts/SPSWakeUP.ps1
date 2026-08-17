@@ -1,5 +1,5 @@
 ﻿<#PSScriptInfo
-    .VERSION 4.2.3
+    .VERSION 4.2.4
 
     .GUID 1fc873b1-5854-46cb-8632-29cee879bb55
 
@@ -70,8 +70,8 @@
                 Nutsoft (Des Finkenzeller)
                 bed428 (Brian D.)
 
-    Date:		July 07, 2026
-    Version:	4.2.3
+    Date:		August 17, 2026
+    Version:	4.2.4
     Licence:	MIT License
 
     .LINK
@@ -96,7 +96,7 @@ param
 
 #region Initialization
 # Define variables
-$spsWakeupVersion = '4.2.3'
+$spsWakeupVersion = '4.2.4'
 $currentUser = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
 
 # Clear the host console
@@ -517,6 +517,139 @@ function Get-SPSAdminUrl {
         Write-Warning -Message $_
     }
 }
+function Get-SPSPreferredUrl {
+    <#
+    .SYNOPSIS
+        Returns the URL to use for local warm-up, choosing the scheme from the
+        zone's real IIS bindings instead of the (possibly offloaded) public URL.
+
+    .DESCRIPTION
+        In an SSL offloading architecture, the Web Front End listens in HTTP only
+        (no 443 binding) while the Default zone public URL is HTTPS. SPSWakeUp warms
+        up the site collections locally (HOSTS entries pointing to 127.0.0.1), so it
+        must target the scheme that IIS actually listens on locally, not the public
+        (offloaded) scheme.
+
+        Rule: if the zone exposes an HTTP ServerBindings entry, warm up in HTTP;
+        otherwise (SecureBindings only) use HTTPS. The host header and path of the
+        original URL are preserved, which also handles web applications exposing
+        several bindings / host headers on the same zone.
+
+        When the IIS bindings cannot be read (e.g. object model unavailable), the
+        original URL is returned unchanged, preserving the previous behaviour.
+
+    .PARAMETER WebApplication
+        The SPWebApplication object owning the zone to inspect.
+
+    .PARAMETER Zone
+        The SPUrlZone to inspect. Defaults to 'Default'.
+
+    .PARAMETER OriginalUrl
+        The public/AAM URL whose host header and path must be preserved. When omitted,
+        the zone response URI of the web application is used.
+    #>
+    [OutputType([System.String])]
+    param
+    (
+        [Parameter(Mandatory = $true)]
+        $WebApplication,
+
+        [Parameter(Mandatory = $false)]
+        $Zone = 'Default',
+
+        [Parameter(Mandatory = $false)]
+        [System.String]
+        $OriginalUrl
+    )
+
+    # Determine the reference URL whose host header + path must be preserved.
+    $referenceUrl = $OriginalUrl
+    if ([string]::IsNullOrEmpty($referenceUrl)) {
+        try {
+            $referenceUrl = $WebApplication.GetResponseUri($Zone).AbsoluteUri
+        }
+        catch {
+            $referenceUrl = $null
+        }
+    }
+    if ([string]::IsNullOrEmpty($referenceUrl)) {
+        return $referenceUrl
+    }
+
+    try {
+        $refUri = [System.Uri]$referenceUrl
+    }
+    catch {
+        return $referenceUrl
+    }
+
+    # Read the real IIS bindings for the zone. Be defensive: the object model may be
+    # unavailable (unit tests) or the zone may not be extended.
+    $httpBindings = @()
+    $httpsBindings = @()
+    try {
+        if ($null -ne $WebApplication -and $null -ne $WebApplication.IisSettings) {
+            $iis = $WebApplication.IisSettings[$Zone]
+            if ($null -ne $iis) {
+                $httpBindings = @($iis.ServerBindings | Where-Object { $null -ne $_ })
+                $httpsBindings = @($iis.SecureBindings | Where-Object { $null -ne $_ })
+            }
+        }
+    }
+    catch {
+        return $referenceUrl
+    }
+
+    # No binding information available -> keep the original URL untouched.
+    if ($httpBindings.Count -eq 0 -and $httpsBindings.Count -eq 0) {
+        return $referenceUrl
+    }
+
+    # Prefer HTTP when the zone exposes an HTTP ServerBinding (covers SSL offloading);
+    # otherwise use HTTPS (SecureBindings only).
+    if ($httpBindings.Count -gt 0) {
+        $scheme = 'http'
+        $defaultPort = 80
+        $selectedBindings = $httpBindings
+    }
+    else {
+        $scheme = 'https'
+        $defaultPort = 443
+        $selectedBindings = $httpsBindings
+    }
+
+    # Preserve the host header from the reference URL (handles multiple host headers).
+    $hostHeader = $refUri.Host
+
+    # Keep a non-standard port when the matching binding uses one.
+    $port = $defaultPort
+    foreach ($binding in $selectedBindings) {
+        $bindingHost = $binding.HostHeader
+        $bindingPort = $binding.Port
+        if (-not [string]::IsNullOrEmpty($bindingHost)) {
+            if ($bindingHost -eq $hostHeader -and $null -ne $bindingPort) {
+                $port = [int]$bindingPort
+                break
+            }
+        }
+        elseif ($null -ne $bindingPort) {
+            # Catch-all binding (no host header) -> use its port.
+            $port = [int]$bindingPort
+        }
+    }
+
+    $pathAndQuery = $refUri.PathAndQuery
+    if ([string]::IsNullOrEmpty($pathAndQuery)) {
+        $pathAndQuery = '/'
+    }
+
+    if ($port -eq $defaultPort) {
+        return ('{0}://{1}{2}' -f $scheme, $hostHeader, $pathAndQuery)
+    }
+    else {
+        return ('{0}://{1}:{2}{3}' -f $scheme, $hostHeader, $port, $pathAndQuery)
+    }
+}
 function Get-SPSSitesUrl {
     try {
         # Initialize ArrayList Object
@@ -527,7 +660,9 @@ function Get-SPSSitesUrl {
             foreach ($webApp in $webApps) {
                 foreach ($site in $webApp.sites) {
                     if ($site.RootWeb.Url -notmatch 'sitemaster-') {
-                        [void]$tbSitesURL.Add("$($site.RootWeb.Url)")
+                        # Use the scheme that IIS actually listens on locally (SSL offloading aware)
+                        $preferredUrl = Get-SPSPreferredUrl -WebApplication $webApp -Zone 'Default' -OriginalUrl $site.RootWeb.Url
+                        [void]$tbSitesURL.Add("$($preferredUrl)")
                     }
                     $site.Dispose()
                 }
@@ -552,7 +687,8 @@ function Get-SPSWebAppUrl {
         $webApps = Get-SPWebApplication -ErrorAction SilentlyContinue
         if ($null -ne $webApps) {
             foreach ($webapp in $webApps) {
-                $responseUri = $webapp.GetResponseUri('Default').AbsoluteUri
+                # Use the scheme that IIS actually listens on locally (SSL offloading aware)
+                $responseUri = Get-SPSPreferredUrl -WebApplication $webapp -Zone 'Default' -OriginalUrl $webapp.GetResponseUri('Default').AbsoluteUri
                 [void]$webAppURL.Add($responseUri)
                 if ($null -eq (Get-SPServer | Where-Object { $responseUri -match $_.Name })) {
                     Add-SPSHostEntry -Url $responseUri
@@ -566,8 +702,10 @@ function Get-SPSWebAppUrl {
             }
             foreach ($HSNC in $HSNCs) {
                 if ($HSNC.Url -notmatch 'sitemaster-') {
-                    [void]$webAppURL.Add($HSNC.Url)
-                    Add-SPSHostEntry -Url $HSNC.Url
+                    # Resolve the preferred scheme from the HSNC's own web application
+                    $preferredHSNCUrl = Get-SPSPreferredUrl -WebApplication $HSNC.WebApplication -Zone 'Default' -OriginalUrl $HSNC.Url
+                    [void]$webAppURL.Add($preferredHSNCUrl)
+                    Add-SPSHostEntry -Url $preferredHSNCUrl
                 }
                 $HSNC.Dispose()
             }
@@ -665,7 +803,9 @@ Exception: $($_.Exception.Message)
     try {
         # Initialize WebSession from First SPWebApplication object
         $webApp = Get-SpWebApplication | Select-Object -first 1
-        $authentUrl = ("$($webApp.GetResponseUri('Default').AbsoluteUri)" + '_windows/default.aspx?ReturnUrl=/_layouts/15/Authenticate.aspx?Source=%2f')
+        # Use the scheme that IIS actually listens on locally (SSL offloading aware)
+        $authentBaseUrl = Get-SPSPreferredUrl -WebApplication $webApp -Zone 'Default' -OriginalUrl $webApp.GetResponseUri('Default').AbsoluteUri
+        $authentUrl = ("$($authentBaseUrl)" + '_windows/default.aspx?ReturnUrl=/_layouts/15/Authenticate.aspx?Source=%2f')
         Write-Output "Getting webSession by opening $($authentUrl) with Invoke-WebRequest"
         Invoke-WebRequest -Uri $authentUrl `
             -SessionVariable webSession `
@@ -1249,7 +1389,9 @@ switch ($Action) {
         try {
             $firstWebApp = Get-SPWebApplication | Select-Object -First 1
             if ($null -ne $firstWebApp) {
-                $authUrl = "$($firstWebApp.GetResponseUri('Default').AbsoluteUri)_windows/default.aspx?ReturnUrl=/_layouts/15/Authenticate.aspx?Source=%2f"
+                # Use the scheme that IIS actually listens on locally (SSL offloading aware)
+                $authBaseUrl = Get-SPSPreferredUrl -WebApplication $firstWebApp -Zone 'Default' -OriginalUrl $firstWebApp.GetResponseUri('Default').AbsoluteUri
+                $authUrl = "$($authBaseUrl)_windows/default.aspx?ReturnUrl=/_layouts/15/Authenticate.aspx?Source=%2f"
             }
         }
         catch {

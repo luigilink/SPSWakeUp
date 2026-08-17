@@ -82,6 +82,10 @@ Describe 'SPSWakeUP Script Structure' {
             Get-Command Get-SPSWebAppUrl -ErrorAction SilentlyContinue | Should -Not -BeNullOrEmpty
         }
 
+        It 'Should define Get-SPSPreferredUrl function' {
+            Get-Command Get-SPSPreferredUrl -ErrorAction SilentlyContinue | Should -Not -BeNullOrEmpty
+        }
+
         It 'Should define Invoke-SPSWebRequest function' {
             Get-Command Invoke-SPSWebRequest -ErrorAction SilentlyContinue | Should -Not -BeNullOrEmpty
         }
@@ -277,6 +281,70 @@ Describe 'Get-SPSSitesUrl Function' {
             }
             Get-SPSSitesUrl
             # Note: Dispose should be called on SPSite objects
+        }
+    }
+}
+
+Describe 'Get-SPSPreferredUrl Function' {
+
+    BeforeAll {
+        function New-MockBinding {
+            param([string]$HostHeader, [int]$Port)
+            return [PSCustomObject]@{ HostHeader = $HostHeader; Port = $Port }
+        }
+        function New-MockWebApp {
+            param($ServerBindings, $SecureBindings)
+            $iis = [PSCustomObject]@{
+                ServerBindings = $ServerBindings
+                SecureBindings = $SecureBindings
+            }
+            return [PSCustomObject]@{ IisSettings = @{ 'Default' = $iis } }
+        }
+    }
+
+    Context 'SSL offloading (HTTP ServerBinding only)' {
+        It 'Should downgrade an HTTPS public URL to HTTP for local warm-up' {
+            $wa = New-MockWebApp -ServerBindings @((New-MockBinding -HostHeader 'doc' -Port 80)) -SecureBindings @()
+            $result = Get-SPSPreferredUrl -WebApplication $wa -Zone 'Default' -OriginalUrl 'https://doc/sites/team'
+            $result | Should -Be 'http://doc/sites/team'
+        }
+
+        It 'Should preserve the path and query of the original URL' {
+            $wa = New-MockWebApp -ServerBindings @((New-MockBinding -HostHeader 'doc' -Port 80)) -SecureBindings @()
+            $result = Get-SPSPreferredUrl -WebApplication $wa -Zone 'Default' -OriginalUrl 'https://doc/sites/team/subsite/Pages/default.aspx'
+            $result | Should -Be 'http://doc/sites/team/subsite/Pages/default.aspx'
+        }
+    }
+
+    Context 'Full HTTPS (SecureBindings only)' {
+        It 'Should keep HTTPS when the zone only exposes a secure binding' {
+            $wa = New-MockWebApp -ServerBindings @() -SecureBindings @((New-MockBinding -HostHeader 'doc' -Port 443))
+            $result = Get-SPSPreferredUrl -WebApplication $wa -Zone 'Default' -OriginalUrl 'https://doc/sites/team'
+            $result | Should -Be 'https://doc/sites/team'
+        }
+    }
+
+    Context 'Pure HTTP web application' {
+        It 'Should keep HTTP unchanged' {
+            $wa = New-MockWebApp -ServerBindings @((New-MockBinding -HostHeader 'rhcbs' -Port 80)) -SecureBindings @()
+            $result = Get-SPSPreferredUrl -WebApplication $wa -Zone 'Default' -OriginalUrl 'http://rhcbs'
+            $result | Should -Be 'http://rhcbs/'
+        }
+    }
+
+    Context 'Non-standard port' {
+        It 'Should keep a non-standard HTTP port from the matching binding' {
+            $wa = New-MockWebApp -ServerBindings @((New-MockBinding -HostHeader 'app' -Port 8080)) -SecureBindings @()
+            $result = Get-SPSPreferredUrl -WebApplication $wa -Zone 'Default' -OriginalUrl 'https://app/sites/x'
+            $result | Should -Be 'http://app:8080/sites/x'
+        }
+    }
+
+    Context 'No readable bindings (backward compatibility)' {
+        It 'Should return the original URL unchanged when IIS settings are unavailable' {
+            $wa = [PSCustomObject]@{ Name = 'legacy' }
+            $result = Get-SPSPreferredUrl -WebApplication $wa -Zone 'Default' -OriginalUrl 'https://legacy/sites/x'
+            $result | Should -Be 'https://legacy/sites/x'
         }
     }
 }
