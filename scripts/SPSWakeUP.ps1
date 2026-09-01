@@ -35,7 +35,7 @@
 
     .DESCRIPTION
     SPSWakeUp is a PowerShell script tool to warm up all site collection in your SharePoint environment.
-    It's compatible with all supported versions for SharePoint (2016 to Subscription Edition).
+    It's compatible with SharePoint Server Subscription Edition.
     Use WebRequest object in multi-thread to download JS, CSS and Pictures files.
     Log script results in log file, Configure automatically prerequisites for a best warm-up.
 
@@ -178,19 +178,6 @@ User: $currentUser
 ComputerName: $($env:COMPUTERNAME)
 Exception: $_
 "@
-    }
-}
-function Get-SPSInstalledProductVersion {
-    [OutputType([System.Diagnostics.FileVersionInfo])]
-    param ()
-
-    $pathToSearch = 'C:\Program Files\Common Files\microsoft shared\Web Server Extensions\*\ISAPI\Microsoft.SharePoint.dll'
-    $fullPath = Get-Item $pathToSearch -ErrorAction SilentlyContinue | Sort-Object { $_.Directory } -Descending | Select-Object -First 1
-    if ($null -eq $fullPath) {
-        Write-Error -Message 'SharePoint path {C:\Program Files\Common Files\microsoft shared\Web Server Extensions} does not exist'
-    }
-    else {
-        return [System.Diagnostics.FileVersionInfo]::GetVersionInfo($fullPath.FullName)
     }
 }
 function Add-SPSSheduledTask {
@@ -1265,19 +1252,15 @@ Exception: $($_.Exception.Message)
 #endregion
 
 #region initialize SharePoint Context
-# Load SharePoint snap-in/module for all actions that need SharePoint cmdlets.
+# Load the SharePointServer module for all actions that need SharePoint cmdlets.
+# SharePoint Server Subscription Edition is the only supported version.
 if ($Action -in @('Install', 'Uninstall', 'Default', 'AdminSitesOnly')) {
     try {
-        $installedVersion = Get-SPSInstalledProductVersion
-        if ($installedVersion.ProductMajorPart -eq 15 -or $installedVersion.ProductBuildPart -le 12999) {
-            if ($null -eq (Get-PSSnapin -Name Microsoft.SharePoint.PowerShell -ErrorAction SilentlyContinue)) {
-                Add-PSSnapin Microsoft.SharePoint.PowerShell
-            }
+        if (-not (Get-Module -ListAvailable -Name SharePointServer)) {
+            throw 'The SharePointServer module is not available on this server. SPSWakeUp requires SharePoint Server Subscription Edition.'
         }
-        else {
-            if (-not (Get-Module SharePointServer)) {
-                Import-Module SharePointServer -Verbose:$false -WarningAction SilentlyContinue -DisableNameChecking
-            }
+        if (-not (Get-Module SharePointServer)) {
+            Import-Module SharePointServer -Verbose:$false -WarningAction SilentlyContinue -DisableNameChecking
         }
     }
     catch {
@@ -1290,7 +1273,7 @@ Exception: $($_.Exception.Message)
     }
     try {
         $currentSPServer = Get-SPServer | Where-Object -FilterScript { $_.Address -eq $env:COMPUTERNAME }
-        if ($null -ne $currentSPServer -and (Get-SPFarm).buildversion.major -ge 16) {
+        if ($null -ne $currentSPServer) {
             if ($currentSPServer.Role -eq 'Search') {
                 Write-Warning -Message 'You run this script on server with Search MinRole'
                 Add-SPSWakeUpEvent -Message 'Search MinRole is not supported in SPSWakeUp' -Source 'Server MinRole' -EntryType 'Warning'

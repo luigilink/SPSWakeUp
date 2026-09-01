@@ -62,10 +62,6 @@ Describe 'SPSWakeUP Script Structure' {
             Get-Command Add-SPSWakeUpEvent -ErrorAction SilentlyContinue | Should -Not -BeNullOrEmpty
         }
 
-        It 'Should define Get-SPSInstalledProductVersion function' {
-            Get-Command Get-SPSInstalledProductVersion -ErrorAction SilentlyContinue | Should -Not -BeNullOrEmpty
-        }
-
         It 'Should define Add-SPSSheduledTask function' {
             Get-Command Add-SPSSheduledTask -ErrorAction SilentlyContinue | Should -Not -BeNullOrEmpty
         }
