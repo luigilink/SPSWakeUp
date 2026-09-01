@@ -62,7 +62,7 @@
 
 **Compatibility**:
 
-- Designed for all supported SharePoint versions (2016 to Subscription Edition).
+- Designed for SharePoint Server Subscription Edition.
 - Supports mixed execution models with PowerShell 5.1 and PowerShell 7.x.
 
 **Customizable Throttling**:
