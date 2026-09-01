@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Pester tests for SPSWakeUp-pwsh.ps1 script
 
