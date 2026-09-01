@@ -4,7 +4,7 @@ This document provides instructions for installing and configuring the **SPSWake
 
 ## 📦 Prerequisites
 
-- SharePoint Server (2016 or later)
+- SharePoint Server Subscription Edition
 - Administrator privileges on the server
 - PowerShell 5.1 (required)
 - PowerShell 7.x (optional, recommended for faster web request warm-up)
