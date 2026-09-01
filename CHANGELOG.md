@@ -3,6 +3,31 @@
 The format is based on and uses the types of changes according to [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.0.0] - 2026-09-01
+
+### Removed
+
+SPSWakeUP.ps1:
+
+- **BREAKING:** Drop support for SharePoint Server 2016 and 2019 (both reached end of support on 14 July 2026). SPSWakeUp now targets **SharePoint Server Subscription Edition** only ([#49](https://github.com/luigilink/SPSWakeUp/issues/49)).
+- Remove the deprecated `Microsoft.SharePoint.PowerShell` PSSnapin load path and the associated product-version detection from the SharePoint context initialization.
+- Remove the now-unused `Get-SPSInstalledProductVersion` helper (and its test).
+
+### Changed
+
+SPSWakeUP.ps1:
+
+- Load the `SharePointServer` module only, guarded by an explicit availability check that throws a clear error when the module is missing.
+- Simplify the Search MinRole guard that was gated on `buildversion.major -ge 16` (always true on Subscription Edition).
+
+SPSWakeUP.ps1 / SPSWakeUp-pwsh.ps1:
+
+- Bump script version metadata and in-script version variables to `5.0.0`.
+
+### Migration
+
+- Users still running SharePoint Server 2016 or 2019 must stay on the previous release [v4.2.4](https://github.com/luigilink/SPSWakeUp/releases/tag/v4.2.4), which retains the legacy PSSnapin path.
+
 ## [4.2.4] - 2026-08-17
 
 ### Fixed

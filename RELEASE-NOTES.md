@@ -1,19 +1,22 @@
 # SPSWakeUp - Release Notes
 
-## [4.2.4] - 2026-08-17
+## [5.0.0] - 2026-09-01
 
-### Fixed
+### Removed
 
-- Fix warm-up failing in **SSL offloading** architectures where the Web Front End listens in HTTP only (no 443 binding) while the Default zone public URL is HTTPS. SPSWakeUp now selects the local warm-up scheme from the zone's real IIS bindings (`ServerBindings` / `SecureBindings`) instead of the offloaded public URL ([#46](https://github.com/luigilink/SPSWakeUp/issues/46)).
-
-### Added
-
-- Add `Get-SPSPreferredUrl` helper that chooses the warm-up protocol/host from the zone IIS bindings: HTTP when an HTTP ServerBinding exists (covers SSL offloading), HTTPS otherwise. Backward compatible for farms with a real 443 binding.
+- **BREAKING:** Drop support for SharePoint Server 2016 and 2019 (both reached end of support on 14 July 2026). SPSWakeUp now targets **SharePoint Server Subscription Edition** only ([#49](https://github.com/luigilink/SPSWakeUp/issues/49)).
+- Remove the deprecated `Microsoft.SharePoint.PowerShell` PSSnapin load path and the associated product-version detection.
+- Remove the now-unused `Get-SPSInstalledProductVersion` helper.
 
 ### Changed
 
-- Refactor `Get-SPSWebAppUrl` and `Get-SPSSitesUrl` (and the Default-zone authentication URL) to build warm-up URLs through `Get-SPSPreferredUrl`.
-- Bump script version metadata and in-script version variables to `4.2.4`.
+- Load the `SharePointServer` module only, guarded by an explicit availability check that throws a clear error when the module is missing.
+- Simplify the Search MinRole guard that was gated on `buildversion.major -ge 16` (always true on Subscription Edition).
+- Bump script version metadata and in-script version variables to `5.0.0`.
+
+### Migration
+
+- Users still running SharePoint Server 2016 or 2019 must stay on the previous release [v4.2.4](https://github.com/luigilink/SPSWakeUp/releases/tag/v4.2.4), which retains the legacy PSSnapin path.
 
 ## Changelog
 
